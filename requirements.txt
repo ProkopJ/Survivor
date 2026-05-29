@@ -1,0 +1,5 @@
+networkx>=3.0
+scipy>=1.10        # NUTNÉ pro eigenvector_centrality_numpy; bez něj se model tiše degraduje
+numpy>=1.24
+openpyxl>=3.1      # načítání dat z .xlsx
+matplotlib>=3.7    # generování grafů (volitelné)
