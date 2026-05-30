@@ -22,7 +22,7 @@ def load_any(series):
         nk = {n: (n.split()[0] if cnt[n.split()[0]] == 1 else n.split()[0] + " " + n.split()[-1][0] + ".") for n in names}
         return {"players": [{"name": n, "nick": nk[n], "final_pos": p[1], "kmen": None} for n, p in zip(names, j["players"])],
                 "votes": {int(k): [(a, b) for a, b in v] for k, v in j["votes"].items()},
-                "nadoby": {int(k): {"eliminated": nd.get("vyrazeny"), "most_voted": nd.get("nejvic")} for k, nd in j["nadoby"].items()},
+                "nadoby": {int(k): {"eliminated": ([nd.get("vyrazeny")] if nd.get("vyrazeny") else []), "most_voted": nd.get("nejvic")} for k, nd in j["nadoby"].items()},
                 "porota": [(a, b) for a, b in j.get("porota", [])]}
 
 def softmax(s, T=2.0):
@@ -107,7 +107,7 @@ def build_series(series):
     nickmap = {p["name"]: p["nick"] for p in d["players"]}
     disp = lambda nm: REN.get(nickmap.get(nm, nm), nickmap.get(nm, nm))
     kmen = {p["name"]: (p.get("kmen") or "?") for p in d["players"]}
-    played = [tc for tc in get_post_merge_tcs(series) if d["votes"].get(tc)]
+    played = sorted(tc for tc in d["votes"] if tc >= start and d["votes"][tc])
     rounds = []; prev = {}
     timeline_players = {}
     for ridx, tc in enumerate(played):
@@ -129,8 +129,9 @@ def build_series(series):
         blocs = {}
         for v, t in d["votes"].get(tc, []):
             blocs.setdefault(disp(t), []).append(disp(v))
-        elim = {e for t in range(start, tc + 1) for e in [d["nadoby"].get(t, {}).get("eliminated")] if e}
-        rounds.append({"kr": tc, "n": nidx, "eliminated": disp(d["nadoby"].get(tc, {}).get("eliminated")) if d["nadoby"].get(tc, {}).get("eliminated") else None,
+        elim = {e for t in range(start, tc + 1) for e in (d["nadoby"].get(t, {}).get("eliminated") or [])}
+        _el = d["nadoby"].get(tc, {}).get("eliminated") or []
+        rounds.append({"kr": tc, "n": nidx, "eliminated": (", ".join(disp(e) for e in _el) if _el else None),
                        "most_voted": disp(d["nadoby"].get(tc, {}).get("most_voted")) if d["nadoby"].get(tc, {}).get("most_voted") else None,
                        "ranking": ranking,
                        "blocs": [{"target": k, "members": v} for k, v in sorted(blocs.items(), key=lambda x: -len(x[1]))],

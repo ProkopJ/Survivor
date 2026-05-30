@@ -66,14 +66,14 @@ def build_panel(series):
                 else: Gd.add_edge(v, tg, weight=1)
         btw = nx.betweenness_centrality(Gd.to_undirected().subgraph(at_risk)) if Gd.number_of_nodes() else {}
         mino = _minority(data, tc - 1, start, at_risk)
-        elim = data["nadoby"].get(tc, {}).get("eliminated")
+        elim = data["nadoby"].get(tc, {}).get("eliminated") or []
         for n in at_risk:
             if n == immune:
                 continue
             ra = sum(1 for t in range(start, tc) if n in set(get_active(data, t, start)))
             rr = recv[n] / ra if ra > 0 else 0.0
             loy = (with_maj[n] + 1) / (cast[n] + 2)
-            rows.append({"series": series, "tc": tc, "name": n, "y": 1 if n == elim else 0,
+            rows.append({"series": series, "tc": tc, "name": n, "y": 1 if n in elim else 0,
                          "btw_prev": btw.get(n, 0.0), "recvrate_prev": rr,
                          "loyalty_prev": loy, "minority_blok_prev": mino[n]})
         maj = data["nadoby"].get(tc, {}).get("most_voted")

@@ -30,9 +30,9 @@ def factual_divergence(series):
     out = []
     for tc in get_post_merge_tcs(series):
         nd = d["nadoby"].get(tc, {})
-        mv, el = nd.get("most_voted"), nd.get("eliminated")
-        if mv and el and mv != el:
-            out.append((tc, mv, el, mv == win))
+        mv, el = nd.get("most_voted"), (nd.get("eliminated") or [])
+        if mv and el and mv not in el:
+            out.append((tc, mv, ", ".join(el), mv == win))
     return win, out
 
 
@@ -64,7 +64,7 @@ def alternate_universe(series, n_sims=2000, seed=0):
     win = [p["name"] for p in d["players"] if str(p["final_pos"]) == "1"][0]
     saves = [tc for tc in get_post_merge_tcs(series)
              if d["nadoby"].get(tc, {}).get("most_voted") == win
-             and d["nadoby"][tc].get("eliminated") != win]
+             and win not in (d["nadoby"][tc].get("eliminated") or [])]
     if not saves:
         return win, None, {}
     R = saves[0]
