@@ -364,16 +364,24 @@ function renderFlow(idx) {
   if (prev2) rk2.forEach(v => g.append("circle").attr("cx", x2).attr("cy", targetY(rk2, v.target)).attr("r", 3 + v.votes * 0.7).attr("fill", "#C2B7A2").attr("opacity", 0.55).append("title").text(`${prev2.n}. KR · ${v.target}: ${v.votes}`));
   rkPrev.forEach(v => g.append("circle").attr("cx", xL).attr("cy", targetY(rkPrev, v.target)).attr("r", 4 + v.votes).attr("fill", colorByTarget(rkPrev, v.target)).attr("opacity", 0.72).append("title").text(`${prev.n}. · ${v.target}: ${v.votes}`));
   rkCur.forEach(v => g.append("circle").attr("cx", xR).attr("cy", targetY(rkCur, v.target)).attr("r", 4 + v.votes).attr("fill", colorByTarget(rkCur, v.target)).append("title").text(`${cur.n}. · ${v.target}: ${v.votes}`));
-  // popis pod sloupcem: Vyhlasovaný / 2. / 3. nejvíce hlasů (remíza = víc cílů na jedné příčce)
-  const labelFor = r => r === 0 ? "Vyhlasovaný" : `${r + 1}. nejvíce hlasů`;
+  // popis pod sloupcem: 1./2./3. nejvíc hlasů + (při duelu) zvlášť kdo reálně vypadl
+  const labelFor = r => r === 0 ? "Nejvíc hlasů" : `${r + 1}. nejvíce hlasů`;
   [[prev, xL], [cur, xR]].forEach(([rd, x]) => {
     const rk = voteRanking(rd), byRank = {};
     rk.forEach(v => { (byRank[v.rank] = byRank[v.rank] || []).push(v); });
-    Object.keys(byRank).map(Number).sort((a, b) => a - b).slice(0, 3).forEach((r, li) => {
+    let li = 0;
+    Object.keys(byRank).map(Number).sort((a, b) => a - b).slice(0, 3).forEach(r => {
       const grp = byRank[r];
       g.append("text").attr("x", x).attr("y", baseY + 16 + li * 15).attr("text-anchor", "middle")
-        .attr("font-size", 10.5).attr("font-weight", r === 0 ? 800 : 600).attr("fill", r === 0 ? "#C0473E" : "#6B6256")
+        .attr("font-size", 10.5).attr("font-weight", r === 0 ? 800 : 600).attr("fill", "#6B6256")
         .text(`${labelFor(r)}: ${grp.map(v => v.target).join(", ")} (${grp[0].votes})`);
+      li++;
+    });
+    // duel: vypadl někdo jiný než nejvíc-hlasovaný (i ten, na koho se nehlasovalo)
+    [...elimSet(rd)].filter(e => rk[0] && e !== rk[0].target).forEach(e => {
+      g.append("text").attr("x", x).attr("y", baseY + 16 + li * 15).attr("text-anchor", "middle")
+        .attr("font-size", 10.5).attr("font-weight", 800).attr("fill", "#C0473E").text(`✗ Vypadl (duel): ${e}`);
+      li++;
     });
   });
 }
@@ -410,10 +418,17 @@ function renderFlowFull() {
     g.append("line").attr("x1", x).attr("x2", x).attr("y1", top - 12).attr("y2", baseY).attr("stroke", "#D8CEBC").attr("stroke-width", 1);
     g.append("text").attr("x", x).attr("y", 14).attr("text-anchor", "middle").attr("font-weight", 800).attr("fill", "#8A8073").attr("font-size", 11).text(`${r.n}.`);
     const byRank = {}; rks[i].forEach(v => (byRank[v.rank] = byRank[v.rank] || []).push(v));
-    Object.keys(byRank).map(Number).sort((a, b) => a - b).slice(0, 3).forEach((rr, li) => {
+    let li = 0;
+    Object.keys(byRank).map(Number).sort((a, b) => a - b).slice(0, 3).forEach(rr => {
       const grp = byRank[rr], out = grp.some(v => elims[i].has(v.target));
       g.append("text").attr("x", x).attr("y", baseY + 14 + li * 14).attr("text-anchor", "middle").attr("font-size", 9).attr("font-weight", out ? 800 : 600).attr("fill", out ? "#C0473E" : "#8A8073")
         .text(`${out ? "✗" : (rr + 1) + "."} ${grp.map(v => v.target).join(",")}`);
+      li++;
+    });
+    // duel: vypadl někdo jiný než nejvíc-hlasovaný
+    [...elims[i]].filter(e => rks[i][0] && e !== rks[i][0].target).forEach(e => {
+      g.append("text").attr("x", x).attr("y", baseY + 14 + li * 14).attr("text-anchor", "middle").attr("font-size", 9).attr("font-weight", 800).attr("fill", "#C0473E").text(`✗ duel: ${e}`);
+      li++;
     });
   });
   // hráč = souvislá křivka přes kola, kde hlasoval (cíl→cíl mezi sousedními radami), barva per hráč
