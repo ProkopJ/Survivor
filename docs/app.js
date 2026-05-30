@@ -195,7 +195,22 @@ function renderTimeline(sk) {
 
 function renderFinale(s) {
   const fb = document.getElementById("finaleBox");
-  fb.innerHTML = s.finale.finalists.map(f => {
+  // FINÁLNÍ ODDS = predikce modelu mezi finalisty (poslední kolo, přenormováno na 100 %)
+  const finalists = s.finale.finalists.map(f => f.nick);
+  const lastRank = s.rounds[s.rounds.length - 1].ranking.filter(x => finalists.includes(x.nick));
+  const tot = lastRank.reduce((a, x) => a + (x[state.metric] || 0), 0) || 1;
+  const odds = {}; lastRank.forEach(x => odds[x.nick] = (x[state.metric] || 0) / tot * 100);
+  const oddOrder = [...lastRank].sort((a, b) => (odds[b.nick]) - (odds[a.nick]));
+  const oddsHtml = oddOrder.length ? `<div style="background:#fff;border:1px solid #D8CEBC;border-radius:12px;padding:13px 16px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:800;color:#8A8073;margin-bottom:9px">FINÁLNÍ ODDS — predikce modelu (${state.metric === "btw" ? "betweenness" : "eig+btw"})</div>
+    ${oddOrder.map((x, i) => `<div style="display:flex;align-items:center;gap:9px;margin:5px 0">
+      <div style="width:64px;font-weight:800;font-size:13px;color:${i === 0 ? "#E8623A" : "#2A2A28"}">${x.nick}</div>
+      <div style="flex:1;background:#EFE9DD;border-radius:6px;height:16px;overflow:hidden"><div style="width:${Math.max(2, odds[x.nick])}%;height:100%;background:${i === 0 ? "#E8623A" : "#1F9E92"}"></div></div>
+      <div style="width:46px;text-align:right;font-weight:800;font-size:12px;color:#6B6256">${odds[x.nick].toFixed(1)} %</div>
+    </div>`).join("")}
+    <div style="font-size:10.5px;color:#A89E8C;margin-top:8px;font-style:italic">Pozn.: model nezná hlasy poroty — odds jsou z hlasovací sítě, ne predikce poroty.</div>
+  </div>` : "";
+  fb.innerHTML = oddsHtml + s.finale.finalists.map(f => {
     const win = f.nick === s.finale.winner;
     return `<div style="display:flex;align-items:center;gap:14px;padding:11px 16px;margin:7px 0;background:#fff;border-radius:12px;${win ? "border:2px solid #E8623A" : "border:1px solid #D8CEBC"}">
       <div style="font-weight:900;font-size:24px;width:34px;color:${win ? "#E8623A" : "#8A8073"}">${f.pos}.</div>
@@ -376,28 +391,25 @@ function renderFlowFull() {
   svg.attr("height", baseY + rankH + 12);
   const nC = cols.length, xOf = i => mL + (nC <= 1 ? 0 : i * (W - mL - mR) / (nC - 1));
   const g = svg.append("g");
-  // čerchované vodicí linky (skryté hráče vynech)
+  const colN = n => flowHidden.has(n) ? "#D8CEBC" : cmap[n];  // skrytý = zešedne (jako vývoj šancí)
+  // čerchované vodicí linky
+  order.forEach(n => g.append("line").attr("x1", mL).attr("x2", W - mR).attr("y1", laneY[n]).attr("y2", laneY[n])
+    .attr("stroke", "#E0D7C6").attr("stroke-dasharray", "2 4").attr("stroke-width", 1).attr("opacity", flowHidden.has(n) ? 0.5 : 1));
+  // trajektorie hráče = souvislé barevné pásmo přes kola, kde hlasoval (individuální barva)
   order.forEach(n => {
-    if (flowHidden.has(n)) return;
-    g.append("line").attr("x1", mL).attr("x2", W - mR).attr("y1", laneY[n]).attr("y2", laneY[n])
-      .attr("stroke", "#E0D7C6").attr("stroke-dasharray", "2 4").attr("stroke-width", 1);
-  });
-  // trajektorie hráče = barevná čára přes kola, kde hlasoval (barva per hráč)
-  order.forEach(n => {
-    if (flowHidden.has(n)) return;
     const xs = cols.map((r, i) => Object.prototype.hasOwnProperty.call(targetMap(r), n) ? i : -1).filter(i => i >= 0);
     if (xs.length > 1) g.append("line").attr("x1", xOf(xs[0])).attr("x2", xOf(xs[xs.length - 1]))
-      .attr("y1", laneY[n]).attr("y2", laneY[n]).attr("stroke", cmap[n]).attr("stroke-width", 2.4).attr("opacity", 0.85);
+      .attr("y1", laneY[n]).attr("y2", laneY[n]).attr("stroke", colN(n)).attr("stroke-width", flowHidden.has(n) ? 1.4 : 2.4).attr("opacity", flowHidden.has(n) ? 0.4 : 0.85);
   });
   // uzly + záhlaví sloupců + ranking 1./2./3. nejvíc hlasů pod sloupcem
   cols.forEach((r, i) => {
     const x = xOf(i), T = targetMap(r), es = elimSet(r);
     g.append("text").attr("x", x).attr("y", 14).attr("text-anchor", "middle").attr("font-weight", 800).attr("fill", "#8A8073").attr("font-size", 11).text(`${r.n}.`);
     Object.keys(T).forEach(n => {
-      if (laneY[n] == null || flowHidden.has(n)) return;
-      if (es.has(n)) g.append("text").attr("x", x).attr("y", laneY[n] + 5).attr("text-anchor", "middle").attr("font-size", 14).attr("font-weight", 800).attr("fill", "#C0473E").text("✗")
+      if (laneY[n] == null) return;
+      if (es.has(n)) g.append("text").attr("x", x).attr("y", laneY[n] + 5).attr("text-anchor", "middle").attr("font-size", 14).attr("font-weight", 800).attr("fill", flowHidden.has(n) ? "#C2B7A2" : "#C0473E").text("✗")
         .append("title").text(`${n} — vypadl(a)`);
-      else g.append("circle").attr("cx", x).attr("cy", laneY[n]).attr("r", 3.4).attr("fill", cmap[n]).append("title").text(n);
+      else g.append("circle").attr("cx", x).attr("cy", laneY[n]).attr("r", 3.4).attr("fill", colN(n)).attr("opacity", flowHidden.has(n) ? 0.5 : 1).append("title").text(n);
     });
     // ranking pod grafem: 1./2./3. nejvíc hlasů (☠ = kdo nakonec vypadl)
     voteRanking(r).slice(0, 3).forEach((vr, j) => {
