@@ -51,8 +51,10 @@ function renderRanking(r) {
   document.getElementById("rankSub").textContent = `Metrika: ${state.metric === "btw" ? "betweenness (hlavní)" : "eigenvector + betweenness"}` + (r.eliminated ? ` · vypadl(a): ${r.eliminated}` : "");
   document.getElementById("winnerBox").innerHTML = `<div class="winner">Favorit: <b>${rows[0].nick}</b> · ${rows[0][state.metric]} %</div>`;
   const svg = d3.select("#rankSvg");
-  const W = svg.node().clientWidth, n = rows.length, rowH = 30, padT = 8, bh = rowH - 8, m = { l: 96, r: 56 };
-  svg.attr("height", padT * 2 + n * rowH);
+  const W = svg.node().clientWidth, rowH = 30, padT = 8, bh = rowH - 8, m = { l: 96, r: 56 };
+  // Konstantní výška = rezervace pro max. počet hráčů v sérii → obsah neposkakuje při posunu kol
+  const nMax = Math.max(...D.series[state.series].rounds.map(rr => rr.ranking.length));
+  svg.attr("height", padT * 2 + nMax * rowH);
   const maxv = d3.max(rows, d => d[state.metric]) || 1;
   const x = d3.scaleLinear().domain([0, maxv]).range([m.l, W - m.r]);
   const Y = i => padT + i * rowH;
@@ -74,7 +76,7 @@ function renderRanking(r) {
 
 function renderTreemap(r) {
   const svg = d3.select("#tmSvg");
-  const Wt = svg.node().parentNode.clientWidth, Ht = Math.round(Wt * 0.6);
+  const Wt = svg.node().clientWidth, Ht = Math.round(Wt * 0.6);
   svg.attr("width", Wt).attr("height", Ht).style("display", "block");
   const size = { w: Wt, h: Ht };
   const groups = {};
@@ -148,15 +150,28 @@ function renderTree(r) {
     .attr("fill", d => d.e ? "#A89E8C" : "#2A2A28").style("text-decoration", d => d.e ? "line-through" : "none").text(d => d.l);
 }
 
+let _blocsKey = null; // live-reload test
 function renderBlocs(r) {
-  const el = document.getElementById("blocs"); el.innerHTML = "";
-  r.blocs.forEach((b, i) => {
-    const col = PAL[i % PAL.length];
-    const div = document.createElement("div");
-    div.className = "bloc"; div.style.borderTopColor = col;
-    div.innerHTML = `<h3 style="color:${col}">hlasovali na ${b.target}</h3>` + b.members.map(m => `<span class="chip">${m}</span>`).join("");
-    el.appendChild(div);
-  });
+  const el = document.getElementById("blocs");
+  const build = rb => {
+    el.innerHTML = "";
+    rb.blocs.forEach((b, i) => {
+      const col = PAL[i % PAL.length];
+      const div = document.createElement("div");
+      div.className = "bloc"; div.style.borderTopColor = col;
+      div.innerHTML = `<h3 style="color:${col}">hlasovali na ${b.target}</h3>` + b.members.map(m => `<span class="chip">${m}</span>`).join("");
+      el.appendChild(div);
+    });
+  };
+  // rezervuj konstantní výšku = max přes sérii (proti poskakování obsahu pod bloky)
+  const key = state.series + "@" + el.clientWidth;
+  if (_blocsKey !== key) {
+    el.style.minHeight = "0";
+    let mx = 0;
+    for (const rr of D.series[state.series].rounds) { build(rr); if (el.offsetHeight > mx) mx = el.offsetHeight; }
+    el.style.minHeight = mx + "px"; _blocsKey = key;
+  }
+  build(r);
 }
 
 function renderTimeline(sk) {
@@ -207,7 +222,7 @@ function renderPairs(s) {
   g.append("text").attr("transform", "rotate(38)").attr("x", 9).attr("dy", "0.3em").attr("class", "leaflbl").attr("font-size", 13).attr("fill", "#2A2A28").text(d => d);
 }
 
-// ---- FLOW STRIP (notový zápis): sloupce = kmenovky, čáry = hráči protékající koly ----
+// ---- FLOW: fixní vodorovné pruhy (1 hráč = 1 pruh), čerchované vodicí linky ----
 function playerColors(s) {
   const set = new Set();
   s.rounds.forEach(r => (r.blocs || []).forEach(b => b.members.forEach(m => set.add(m))));
@@ -215,75 +230,184 @@ function playerColors(s) {
   const cmap = {}; names.forEach((n, i) => cmap[n] = d3.interpolateTurbo((i + 0.5) / names.length));
   return cmap;
 }
-function stripGeom(s) {
-  const top = 40, rowH = 22, gap = 15;
-  const cols = s.rounds.map(r => {
-    const T = {}; (r.blocs || []).forEach(b => b.members.forEach(m => T[m] = b.target));
-    const players = Object.keys(T), elim = r.most_voted || r.eliminated;
-    const cnt = {}; players.forEach(n => cnt[T[n]] = (cnt[T[n]] || 0) + 1);
-    const targets = Object.keys(cnt).sort((a, b) => (b === elim) - (a === elim) || cnt[b] - cnt[a] || a.localeCompare(b, "cs"));
-    const pos = {}, center = {}; let y = top;
-    targets.forEach(t => {
-      const mem = players.filter(n => T[n] === t).sort((a, b) => a.localeCompare(b, "cs")); const y0 = y;
-      mem.forEach(n => { pos[n] = y + rowH / 2; y += rowH; });
-      center[t] = (y0 + y) / 2; y += gap;
-    });
-    return { r, T, players, targets, pos, center, elim, h: y };
-  });
-  return { cols, top, rowH, maxH: Math.max(...cols.map(c => c.h)) };
+function elimSet(r) { return new Set(String(r.eliminated || "").split(",").map(x => x.trim()).filter(Boolean)); }
+function targetMap(r) { const T = {}; (r.blocs || []).forEach(b => b.members.forEach(m => T[m] = b.target)); return T; }
+function voteRanking(r) {
+  const arr = (r.blocs || []).map(b => ({ target: b.target, votes: b.members.length }))
+    .sort((a, b) => b.votes - a.votes || a.target.localeCompare(b.target, "cs"));
+  // standardní pořadí (1,2,2,4): stejný počet hlasů = stejná příčka
+  let rank = 0;
+  arr.forEach((v, i) => { if (i > 0 && v.votes < arr[i - 1].votes) rank = i; v.rank = rank; });
+  return arr;
 }
-function drawStrip(g, geo, xOf, colorOf, opts) {
-  const { cols } = geo; opts = opts || {}; const hidden = opts.hidden || new Set();
-  g.selectAll("*").remove();
-  cols.forEach((c, i) => {
-    const x = xOf(i);
-    g.append("text").attr("x", x).attr("y", 22).attr("text-anchor", "middle").attr("font-weight", 800).attr("fill", "#6B6256").attr("font-size", 12).text(`${c.r.n}.`);
-    c.targets.forEach(t => g.append("text").attr("x", x).attr("y", c.center[t] - 9).attr("text-anchor", "middle").attr("font-size", 8.5).attr("font-weight", 700)
-      .attr("fill", t === c.elim ? "#C0473E" : "#A89E8C").text((t === c.elim ? "☠" : "→") + t));
+// fixní pořadí hráčů: finalisté nahoře (dle pozice), pak dle vyřazení (později vyřazený výš)
+function flowOrder(s) {
+  const players = new Set();
+  s.rounds.forEach(r => (r.blocs || []).forEach(b => b.members.forEach(m => players.add(m))));
+  const elimAt = {};
+  s.rounds.forEach(r => elimSet(r).forEach(nm => { if (elimAt[nm] == null) elimAt[nm] = r.n; }));
+  const fin = {}; ((s.finale && s.finale.finalists) || []).forEach(f => fin[f.nick] = f.pos);
+  return [...players].sort((a, b) => {
+    const fa = fin[a] != null, fb = fin[b] != null;
+    if (fa && fb) return fin[a] - fin[b];
+    if (fa) return -1; if (fb) return 1;
+    return (elimAt[b] || 99) - (elimAt[a] || 99);
   });
-  for (let i = 0; i < cols.length - 1; i++) {
-    const a = cols[i], b = cols[i + 1], xa = xOf(i), xb = xOf(i + 1), mid = (xa + xb) / 2;
-    a.players.filter(n => b.pos[n] != null && !hidden.has(n)).forEach(n => {
-      const op = opts.emph ? (opts.emph === i + 1 ? 0.95 : 0.16) : 0.82;
-      g.append("path").attr("d", `M${xa},${a.pos[n]} C${mid},${a.pos[n]} ${mid},${b.pos[n]} ${xb},${b.pos[n]}`)
-        .attr("fill", "none").attr("stroke", colorOf(n)).attr("stroke-width", 2.2).attr("opacity", op)
-        .attr("stroke-dasharray", n === b.elim ? "5 4" : null).append("title").text(n);
-    });
-  }
-  cols.forEach((c, i) => {
-    const x = xOf(i), showN = !opts.emph || Math.abs(i - opts.emph) <= 1 || i === opts.emph - 1;
-    c.players.forEach(n => {
-      if (hidden.has(n)) return;
-      g.append("circle").attr("cx", x).attr("cy", c.pos[n]).attr("r", 3).attr("fill", n === c.elim ? "#C0473E" : colorOf(n));
-      if (showN) g.append("text").attr("x", x + 6).attr("y", c.pos[n] + 3.5).attr("font-size", 10).attr("font-weight", 700)
-        .attr("fill", n === c.elim ? "#C0473E" : "#4D4A44").text(n);
-    });
-  });
+}
+
+// ===== Přesuny mezi koly: alluvial mezi PŘEDCHOZÍM (vlevo) a AKTUÁLNÍM (vpravo) kolem =====
+// Body = cíle hlasů (max 3-4). Čára = hráč (koho volil minule → koho volí teď).
+// Barva = aktuální blok: na vyřazeného (nejvíc hlasů) = oranžová, jiný blok = jiná barva.
+const FLOWPAL = ["#E8623A", "#1F9E92", "#E7AE3A", "#3E6FA3", "#9B5DE5"];
+function flowTargetsOrdered(r) { // cíle kola; vyřazený (most_voted) první → dostane hlavní (oranžovou) barvu
+  const rk = voteRanking(r), es = elimSet(r);
+  const main = r.most_voted || [...es][0] || (rk[0] && rk[0].target);
+  return [main, ...rk.map(x => x.target).filter(t => t !== main)].filter(Boolean);
 }
 function renderFlow(idx) {
   const svg = d3.select("#flowSvg"); svg.selectAll("*").remove();
   const W = svg.node().clientWidth, s = D.series[state.series];
   if (s.rounds.length < 2) { svg.attr("height", 70); svg.append("text").attr("x", 16).attr("y", 40).attr("fill", "#8A8073").attr("font-size", 14).text("Zatím málo kol."); return; }
-  const geo = stripGeom(s), cmap = playerColors(s);
-  const colW = 168, padL = 34, xOf = i => padL + i * colW;
-  svg.attr("height", geo.maxH + 8);
-  const strip = svg.append("g").attr("class", "strip");
-  drawStrip(strip, geo, xOf, n => cmap[n], { emph: idx });
-  const cx = idx >= 1 ? (xOf(idx - 1) + xOf(idx)) / 2 : xOf(0);
-  strip.transition().duration(DUR).ease(d3.easeCubicInOut).attr("transform", `translate(${W / 2 - cx},0)`);
+  if (idx < 1) { svg.attr("height", 80); svg.append("text").attr("x", 16).attr("y", 44).attr("fill", "#8A8073").attr("font-size", 14).text("První kmenová rada po sloučení — přesun se ukáže od 2."); return; }
+  const cur = s.rounds[idx], prev = s.rounds[idx - 1], prev2 = idx >= 2 ? s.rounds[idx - 2] : null;
+  const Tcur = targetMap(cur), Tprev = targetMap(prev), T2 = prev2 ? targetMap(prev2) : {}, curElim = elimSet(cur);
+  const rkCur = voteRanking(cur), rkPrev = voteRanking(prev), rk2 = prev2 ? voteRanking(prev2) : [];
+  // LAJNY PODLE POŘADÍ (rank): rank 0 = vyhlasovaný (nahoře), 1 = 2. nejvíce hlasů, …
+  // remíza = stejný rank → stejná vodorovná lajna (oba cíle na ní)
+  const rankIn = (rk, t) => { const v = rk.find(x => x.target === t); return v ? v.rank : rk.length; };
+  const maxRank = rk => rk.reduce((m, v) => Math.max(m, v.rank), 0);
+  // FIXNÍ napříč celou sérií → okno neposkakuje při posouvání mezi radami:
+  // L = max počet lajn (různých příček) přes všechna kola; maxNames = max hlasujících
+  const L = Math.max(1, ...s.rounds.map(r => maxRank(voteRanking(r)) + 1));
+  const maxNames = Math.max(...s.rounds.map(r => Object.keys(targetMap(r)).length));
+  const colorByRank = r => r >= FLOWPAL.length ? "#C2B7A2" : FLOWPAL[r];
+
+  const top = 34, nameGap = 23;
+  const names = Object.keys(Tcur).sort((a, b) =>
+    (rankIn(rkCur, Tcur[a]) - rankIn(rkCur, Tcur[b])) ||
+    (rankIn(rkPrev, Tprev[a]) - rankIn(rkPrev, Tprev[b])) || a.localeCompare(b, "cs"));
+  const H = Math.max(maxNames * nameGap, (L - 1) * 80, 110);
+  const laneY = r => top + (L <= 1 ? H / 2 : r * H / (L - 1));
+  // remíza: víc cílů na jedné lajně → rozprostři je kolem lajny (každý vlastní koule)
+  const tieOffset = (rk, t) => {
+    const v = rk.find(x => x.target === t); if (!v) return 0;
+    const peers = rk.filter(x => x.rank === v.rank);
+    if (peers.length <= 1) return 0;
+    return (peers.findIndex(x => x.target === t) - (peers.length - 1) / 2) * 26;
+  };
+  const targetY = (rk, t) => laneY(rankIn(rk, t)) + tieOffset(rk, t);
+  const x2 = 64, xL = prev2 ? 196 : 150, xR = W - 140, xMid = (xL + xR) / 2;
+  // jména: fixní rozestup, vycentrovaná na střed okna (rozestup se nemění s počtem)
+  const nameY = {}; const nameBlock = (names.length - 1) * nameGap, nameTop = top + H / 2 - nameBlock / 2;
+  names.forEach((p, j) => nameY[p] = nameTop + j * nameGap);
+  const baseY = top + H + 16;
+  svg.attr("height", baseY + 58);
+  const g = svg.append("g");
+
+  // svislé čáry sloupců (kmenových rad)
+  [prev2 ? x2 : null, xL, xR].filter(v => v != null).forEach(x =>
+    g.append("line").attr("x1", x).attr("x2", x).attr("y1", top - 14).attr("y2", baseY).attr("stroke", "#C2B7A2").attr("stroke-width", 1.5).attr("opacity", x === x2 ? 0.5 : 1));
+
+  // ČERCHOVANÉ VODOROVNÉ lajny: jedna na každé pořadí (vyhlasovaný / 2. / 3. …) napříč radami
+  for (let r = 0; r < L; r++)
+    g.append("line").attr("x1", prev2 ? x2 : xL).attr("x2", xR).attr("y1", laneY(r)).attr("y2", laneY(r))
+      .attr("stroke", "#D8CEBC").attr("stroke-dasharray", "2 5").attr("stroke-width", 1);
+
+  // šedé kontextové čáry z předpředchozí rady (idx-2 → idx-1)
+  if (prev2) Object.keys(T2).forEach(p => {
+    if (Tprev[p] == null) return;
+    const m = (x2 + xL) / 2, ya = targetY(rk2, T2[p]), yb = targetY(rkPrev, Tprev[p]);
+    g.append("path").attr("d", `M${x2},${ya} C${m},${ya} ${m},${yb} ${xL},${yb}`)
+      .attr("fill", "none").attr("stroke", "#C2B7A2").attr("stroke-width", 1.2).attr("opacity", 0.4);
+  });
+  // barva hráče = MINULÝ blok (kam hlasoval v předchozí radě) → vidět, jak se starý blok rozpadl
+  // kdo minule nehlasoval (nově aktivní) = šedá; vyřazený v aktuální radě = čerchovaná čára
+  const playerColor = p => Tprev[p] != null ? colorByRank(rankIn(rkPrev, Tprev[p])) : "#C2B7A2";
+  names.forEach(p => {
+    const col = playerColor(p), yN = nameY[p], hadPrev = Tprev[p] != null, elimNow = curElim.has(p);
+    const yPrev = hadPrev ? targetY(rkPrev, Tprev[p]) : yN, yCur = targetY(rkCur, Tcur[p]);
+    const m1 = (xL + xMid) / 2, m2 = (xMid + xR) / 2;
+    // bez minulého hlasu → čára začíná až uprostřed (od jména), ne od levého uzlu
+    const d = hadPrev
+      ? `M${xL},${yPrev} C${m1},${yPrev} ${m1},${yN} ${xMid},${yN} S${m2},${yCur} ${xR},${yCur}`
+      : `M${xMid},${yN} S${m2},${yCur} ${xR},${yCur}`;
+    g.append("path").attr("d", d).attr("fill", "none").attr("stroke", col).attr("stroke-width", 2).attr("opacity", 0.55)
+      .attr("stroke-dasharray", elimNow ? "5 4" : null)
+      .append("title").text(`${p}: ${prev.n}.→ ${Tprev[p] || "—"}, ${cur.n}.→ ${Tcur[p]}${elimNow ? " (vyřazen)" : ""}`);
+  });
+  // jména uprostřed (krémové halo; barva = minulý blok, vyřazený červeně)
+  names.forEach(p => g.append("text").attr("x", xMid).attr("y", nameY[p] + 3.5).attr("text-anchor", "middle")
+    .attr("font-size", 11).attr("font-weight", 700).attr("stroke", "#F3EEE4").attr("stroke-width", 3.5).attr("paint-order", "stroke")
+    .attr("fill", curElim.has(p) ? "#C0473E" : playerColor(p)).text(p + (curElim.has(p) ? " ✗" : "")));
+  // záhlaví sloupců
+  if (prev2) g.append("text").attr("x", x2).attr("y", 15).attr("text-anchor", "start").attr("font-weight", 700).attr("font-size", 10).attr("fill", "#B0A695").text(`${prev2.n}. KR`);
+  g.append("text").attr("x", xL).attr("y", 15).attr("text-anchor", "middle").attr("font-weight", 800).attr("font-size", 12).attr("fill", "#8A8073").text(`${prev.n}. kmenová rada`);
+  g.append("text").attr("x", xR).attr("y", 15).attr("text-anchor", "middle").attr("font-weight", 800).attr("font-size", 12).attr("fill", "#E8623A").text(`${cur.n}. kmenová rada`);
+  // uzly cílů na své lajně (idx-2 šedě, idx-1 a idx barevně dle pořadí), velikost ~ hlasy
+  if (prev2) rk2.forEach(v => g.append("circle").attr("cx", x2).attr("cy", targetY(rk2, v.target)).attr("r", 3 + v.votes * 0.7).attr("fill", "#C2B7A2").attr("opacity", 0.55).append("title").text(`${prev2.n}. KR · ${v.target}: ${v.votes}`));
+  rkPrev.forEach(v => g.append("circle").attr("cx", xL).attr("cy", targetY(rkPrev, v.target)).attr("r", 4 + v.votes).attr("fill", colorByRank(v.rank)).attr("opacity", 0.72).append("title").text(`${prev.n}. · ${v.target}: ${v.votes}`));
+  rkCur.forEach(v => g.append("circle").attr("cx", xR).attr("cy", targetY(rkCur, v.target)).attr("r", 4 + v.votes).attr("fill", colorByRank(v.rank)).append("title").text(`${cur.n}. · ${v.target}: ${v.votes}`));
+  // popis pod sloupcem: Vyhlasovaný / 2. / 3. nejvíce hlasů (remíza = víc cílů na jedné příčce)
+  const labelFor = r => r === 0 ? "Vyhlasovaný" : `${r + 1}. nejvíce hlasů`;
+  [[prev, xL], [cur, xR]].forEach(([rd, x]) => {
+    const rk = voteRanking(rd), byRank = {};
+    rk.forEach(v => { (byRank[v.rank] = byRank[v.rank] || []).push(v); });
+    Object.keys(byRank).map(Number).sort((a, b) => a - b).slice(0, 3).forEach((r, li) => {
+      const grp = byRank[r];
+      g.append("text").attr("x", x).attr("y", baseY + 16 + li * 15).attr("text-anchor", "middle")
+        .attr("font-size", 10.5).attr("font-weight", r === 0 ? 800 : 600).attr("fill", r === 0 ? "#C0473E" : "#6B6256")
+        .text(`${labelFor(r)}: ${grp.map(v => v.target).join(", ")} (${grp[0].votes})`);
+    });
+  });
 }
+
+// ===== Finále: Pás přesunů — celá série (fixní pruhy, barva per hráč, ✗ = vypadl, ranking pod sloupci) =====
 let flowHidden = new Set();
 function renderFlowFull() {
   const svg = d3.select("#flowFullSvg"); svg.selectAll("*").remove();
   const W = svg.node().clientWidth, s = D.series[state.series];
   if (s.rounds.length < 2) return;
-  const geo = stripGeom(s), cmap = playerColors(s);
-  const n = geo.cols.length, padL = 44, padR = 30, colW = (W - padL - padR) / Math.max(1, n - 1), xOf = i => padL + i * colW;
-  svg.attr("height", geo.maxH + 8);
-  drawStrip(svg.append("g"), geo, xOf, x => cmap[x], { hidden: flowHidden });
-  // legenda s vypínáním hráčů (jako u vývoje šancí)
+  const cmap = playerColors(s), order = flowOrder(s), cols = s.rounds;
+  const top = 26, rowH = 22, mL = 26, mR = 22, rankH = 64;
+  const laneY = {}; order.forEach((n, k) => laneY[n] = top + k * rowH);
+  const baseY = top + order.length * rowH;
+  svg.attr("height", baseY + rankH + 12);
+  const nC = cols.length, xOf = i => mL + (nC <= 1 ? 0 : i * (W - mL - mR) / (nC - 1));
+  const g = svg.append("g");
+  // čerchované vodicí linky (skryté hráče vynech)
+  order.forEach(n => {
+    if (flowHidden.has(n)) return;
+    g.append("line").attr("x1", mL).attr("x2", W - mR).attr("y1", laneY[n]).attr("y2", laneY[n])
+      .attr("stroke", "#E0D7C6").attr("stroke-dasharray", "2 4").attr("stroke-width", 1);
+  });
+  // trajektorie hráče = barevná čára přes kola, kde hlasoval (barva per hráč)
+  order.forEach(n => {
+    if (flowHidden.has(n)) return;
+    const xs = cols.map((r, i) => Object.prototype.hasOwnProperty.call(targetMap(r), n) ? i : -1).filter(i => i >= 0);
+    if (xs.length > 1) g.append("line").attr("x1", xOf(xs[0])).attr("x2", xOf(xs[xs.length - 1]))
+      .attr("y1", laneY[n]).attr("y2", laneY[n]).attr("stroke", cmap[n]).attr("stroke-width", 2.4).attr("opacity", 0.85);
+  });
+  // uzly + záhlaví sloupců + ranking 1./2./3. nejvíc hlasů pod sloupcem
+  cols.forEach((r, i) => {
+    const x = xOf(i), T = targetMap(r), es = elimSet(r);
+    g.append("text").attr("x", x).attr("y", 14).attr("text-anchor", "middle").attr("font-weight", 800).attr("fill", "#8A8073").attr("font-size", 11).text(`${r.n}.`);
+    Object.keys(T).forEach(n => {
+      if (laneY[n] == null || flowHidden.has(n)) return;
+      if (es.has(n)) g.append("text").attr("x", x).attr("y", laneY[n] + 5).attr("text-anchor", "middle").attr("font-size", 14).attr("font-weight", 800).attr("fill", "#C0473E").text("✗")
+        .append("title").text(`${n} — vypadl(a)`);
+      else g.append("circle").attr("cx", x).attr("cy", laneY[n]).attr("r", 3.4).attr("fill", cmap[n]).append("title").text(n);
+    });
+    // ranking pod grafem: 1./2./3. nejvíc hlasů (☠ = kdo nakonec vypadl)
+    voteRanking(r).slice(0, 3).forEach((vr, j) => {
+      const out = es.has(vr.target);
+      g.append("text").attr("x", x).attr("y", baseY + 16 + j * 15).attr("text-anchor", "middle")
+        .attr("font-size", 9.5).attr("font-weight", out ? 800 : 600).attr("fill", out ? "#C0473E" : "#8A8073")
+        .text(`${out ? "✗" : (j + 1) + "."} ${vr.target}`);
+    });
+  });
+  // legenda s vypínáním hráčů (jména jen tady — v grafu nejsou)
   const leg = d3.select("#flowFullLegend"); leg.html("");
-  Object.keys(cmap).sort((a, b) => a.localeCompare(b, "cs")).forEach(nm => {
+  order.forEach(nm => {
     const chip = leg.append("span").attr("class", "flchip").style("opacity", flowHidden.has(nm) ? 0.35 : 1);
     chip.append("span").attr("class", "fldot").style("background", cmap[nm]);
     chip.append("span").text(nm);
@@ -310,11 +434,13 @@ let prevFin;
 function render(reset = true) {
   const s = D.series[state.series], nR = s.rounds.length;
   const isFin = s.finale && state.roundIdx >= nR;
-  if (prevFin !== undefined && prevFin !== isFin) window.scrollTo({ top: 0, behavior: "smooth" });
   prevFin = isFin;
   document.getElementById("krLabel").textContent = isFin ? "Finále" : `${s.rounds[state.roundIdx].n}. kmenová rada po sloučení`;
-  ["rankCard", "tmCard", "flowCard"].forEach(id => document.getElementById(id).style.display = isFin ? "none" : "");
-  document.getElementById("pairsCard").style.display = isFin ? "none" : "";
+  ["rankCard", "tmCard"].forEach(id => document.getElementById(id).style.display = isFin ? "none" : "");
+  // Prázdné sekce skryj, dokud nejsou data (objeví se samy po pár kolech).
+  const hasPairs = s.pairs && s.pairs.length, hasFlow = nR >= 2;
+  document.getElementById("flowCard").style.display = (isFin || !hasFlow) ? "none" : "";
+  document.getElementById("pairsCard").style.display = (isFin || !hasPairs) ? "none" : "";
   document.getElementById("finaleCard").style.display = isFin ? "" : "none";
   document.getElementById("flowFullCard").style.display = isFin ? "" : "none";
   const treeCard = document.getElementById("treeCard"), tmCard = document.getElementById("tmCard");

@@ -14,15 +14,10 @@
   html{overflow-y:scroll;}
   body{font-family:'Archivo',system-ui,sans-serif;color:var(--ink);line-height:1.5;
     background:
-      radial-gradient(circle at 82% 20%, #F25C3B 0 5%, rgba(242,92,59,0) 8.2%),
-      linear-gradient(180deg,
-        #9FD3CB 0%, #A9D7CE 38%,
-        #3F73AD 50%, #2E61A0 56%,
-        #3A6FA0 60%, #6E8E8E 63.5%,
-        #C7B98A 67%, #DCC97E 71%,
-        #E2CD7E 78%, #E8E2D9 92%);
-    background-attachment:fixed;background-repeat:no-repeat;}
-  .wrap{max-width:1000px;margin:0 auto;padding:26px 18px 70px;}
+      radial-gradient(circle at 85% 96px, rgba(232,98,58,0.16) 0 44px, rgba(232,98,58,0) 150px),
+      var(--bg);
+    background-attachment:scroll;background-repeat:no-repeat;}
+  .wrap{max-width:1180px;margin:0 auto;padding:26px 18px 70px;}
   header h1{font-size:38px;font-weight:900;letter-spacing:-.5px;}
   header h1 span{color:var(--orange);}
   header p{color:var(--ink2);font-size:14px;margin-top:3px;}
@@ -33,11 +28,36 @@
   .seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;}
   .seg button{border:none;background:#fff;padding:8px 13px;font-weight:700;font-size:13px;cursor:pointer;color:var(--ink2);}
   .seg button.on{background:var(--orange);color:#fff;}
-  .sliderbox{display:flex;align-items:center;gap:10px;flex:1;min-width:240px;}
+  .sliderbox{display:flex;align-items:center;gap:10px;flex:1 1 100%;min-width:0;}
   .sliderbox input[type=range]{flex:1;accent-color:var(--orange);}
   .playbtn{border:none;background:var(--teal);color:#fff;font-family:inherit;font-weight:800;font-size:13px;border-radius:10px;padding:8px 13px;cursor:pointer;white-space:nowrap;}
   .playbtn.on{background:var(--orange);}
-  #krLabel{font-weight:800;font-size:14px;width:240px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #krLabel{font-weight:800;font-size:14px;flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* === Boční ovládací panel === */
+  .layout{display:flex;gap:18px;align-items:flex-start;}
+  .rail{flex:0 0 208px;position:sticky;top:14px;margin-top:16px;display:flex;flex-direction:column;gap:13px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 14px;box-shadow:0 4px 16px rgba(42,42,40,.10);z-index:50;}
+  .content{flex:1 1 auto;min-width:0;}
+  .railsec{display:flex;flex-direction:column;gap:5px;}
+  .rail select{width:100%;}
+  .rail .seg{display:flex;width:100%;}
+  .rail .seg button{flex:1;}
+  .rail .playbtn{width:100%;}
+  .railslider{display:flex;flex-direction:column;gap:11px;border-top:1px dashed var(--line);padding-top:13px;}
+  .krwrap{display:flex;gap:12px;align-items:stretch;}
+  .rail input[type=range]{writing-mode:vertical-lr;direction:rtl;width:12px;height:188px;flex:none;accent-color:var(--orange);cursor:pointer;}
+  .rail #krLabel{font-weight:800;font-size:13.5px;line-height:1.35;white-space:normal;align-self:center;color:var(--ink);}
+  /* Na výšku (portrait) = vodorovná lišta nahoře; na šířku (landscape) = boční panel */
+  @media (orientation: portrait){
+    .layout{display:block;}
+    .rail{position:sticky;top:0;flex-direction:row;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:14px;}
+    .railsec{flex-direction:row;align-items:center;gap:8px;}
+    .rail select,.rail .seg,.rail .playbtn{width:auto;}
+    .railslider{flex-direction:row;align-items:center;border-top:none;padding-top:0;flex:1 1 100%;}
+    .krwrap{flex:1;align-items:center;}
+    .rail #krLabel{flex:0 0 168px;width:168px;text-align:left;}
+    .rail input[type=range]{writing-mode:horizontal-tb;direction:ltr;width:auto;height:auto;flex:1;}
+    .rail #krLabel{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  }
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:16px 0;}
   .cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
   .card h2{font-size:19px;font-weight:800;}
@@ -75,20 +95,25 @@
     <p>Síťový model predikce · <b>predikce, ne spoiler</b></p>
   </header>
 
-  <div class="controls">
-    <label class="lb">Série</label>
-    <select id="seriesSel"></select>
+  <div class="layout">
+  <aside class="rail">
+    <div class="railsec">
+      <label class="lb">Série</label>
+      <select id="seriesSel"></select>
+    </div>
     <span class="seg" id="metricWrap">
       <button data-m="btw" class="on">Betweenness</button>
       <button data-m="eigbtw">Eig + btw</button>
     </span>
-    <span class="sliderbox" id="sliderBox">
+    <div class="railslider" id="sliderBox">
       <button id="playBtn" class="playbtn">▶ Přehrát</button>
-      <label class="lb">Kolo</label>
-      <input type="range" id="krSlider" min="0" max="0" value="0" step="1">
-      <span id="krLabel"></span>
-    </span>
-  </div>
+      <div class="krwrap">
+        <input type="range" id="krSlider" min="0" max="0" value="0" step="1">
+        <span id="krLabel"></span>
+      </div>
+    </div>
+  </aside>
+  <main class="content">
 
   <div class="card" id="rankCard">
     <div class="cardhead"><div><h2>Šance na celkové vítězství</h2><div class="sub" id="rankSub"></div></div><button class="exp" data-t="rankCard">⬇ PNG</button></div>
@@ -105,11 +130,6 @@
   <div class="card" id="treeCard">
     <div class="cardhead"><div><h2>Strom aliancí</h2><div class="sub">Kdo s kým drží podle hlasování (kumulativně) · šedě přeškrtnutí = vypadli</div></div><button class="exp" data-t="treeCard">⬇ PNG</button></div>
     <svg id="treeSvg" class="viz" height="470"></svg>
-  </div>
-
-  <div class="card" id="pairsCard">
-    <div class="cardhead"><div><h2>Silné aliance</h2><div class="sub">Dvojice s nejvyšší shodou hlasů (celá série) · silnější oblouk = pevnější spojenectví</div></div><button class="exp" data-t="pairsCard">⬇ PNG</button></div>
-    <svg id="pairsSvg" class="viz" height="300"></svg>
   </div>
 
   <div class="card" id="flowCard">
@@ -131,6 +151,14 @@
   <div class="card" id="tlCard">
     <div class="cardhead"><div><h2>Vývoj šancí v čase</h2><div class="sub">Jak se šance na výhru mění kolo po kole</div></div><button class="exp" data-t="tlCard">⬇ PNG</button></div>
     <div style="position:relative;height:360px"><canvas id="tlChart"></canvas></div>
+  </div>
+
+  <div class="card" id="pairsCard">
+    <div class="cardhead"><div><h2>Silné aliance</h2><div class="sub">Dvojice s nejvyšší shodou hlasů (celá série) · silnější oblouk = pevnější spojenectví</div></div><button class="exp" data-t="pairsCard">⬇ PNG</button></div>
+    <svg id="pairsSvg" class="viz" height="300"></svg>
+  </div>
+
+  </main>
   </div>
 
   <footer><b>@survivor.predikce</b> · síťový model · kód a metodika na GitHubu · predikce, ne spoiler</footer>
