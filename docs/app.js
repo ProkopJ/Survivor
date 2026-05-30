@@ -378,50 +378,63 @@ function renderFlow(idx) {
   });
 }
 
-// ===== Finále: Pás přesunů — celá série (fixní pruhy, barva per hráč, ✗ = vypadl, ranking pod sloupci) =====
+// ===== Finále: Pás přesunů — STEJNÝ alluvial jako "Přesuny mezi koly", ale přes CELOU sérii =====
+// Sloupce = kmenovky, cíle na lajnách dle pořadí; hráč = souvislá křivka tekoucí mezi svými cíli.
+// Rozdíl od renderFlow: barva per HRÁČ (ne per blok) + vypínání hráčů (zešednutí).
 let flowHidden = new Set();
 function renderFlowFull() {
   const svg = d3.select("#flowFullSvg"); svg.selectAll("*").remove();
   const W = svg.node().clientWidth, s = D.series[state.series];
   if (s.rounds.length < 2) return;
-  const cmap = playerColors(s), order = flowOrder(s), cols = s.rounds;
-  const top = 26, rowH = 22, mL = 26, mR = 22, rankH = 64;
-  const laneY = {}; order.forEach((n, k) => laneY[n] = top + k * rowH);
-  const baseY = top + order.length * rowH;
-  svg.attr("height", baseY + rankH + 12);
-  const nC = cols.length, xOf = i => mL + (nC <= 1 ? 0 : i * (W - mL - mR) / (nC - 1));
+  const cmap = playerColors(s), cols = s.rounds, nC = cols.length;
+  const Ts = cols.map(targetMap), rks = cols.map(voteRanking), elims = cols.map(elimSet);
+  // lajny dle pořadí (rank) — fixní napříč sérií; remíza = offset kolem lajny
+  const L = Math.max(1, ...rks.map(rk => rk.reduce((m, v) => Math.max(m, v.rank), 0) + 1));
+  const top = 30, mL = 30, mR = 24, rowH = 78, rankH = 60;
+  const H = Math.max((L - 1) * rowH, 90);
+  const laneY = r => top + (L <= 1 ? H / 2 : r * H / (L - 1));
+  const tie = (rk, t) => { const v = rk.find(x => x.target === t); if (!v) return 0; const ps = rk.filter(x => x.rank === v.rank); return ps.length <= 1 ? 0 : (ps.findIndex(x => x.target === t) - (ps.length - 1) / 2) * 24; };
+  const yOf = (i, t) => t == null ? null : laneY(rks[i].find(x => x.target === t) ? rks[i].find(x => x.target === t).rank : L) + tie(rks[i], t);
+  const baseY = top + H + 16;
+  svg.attr("height", baseY + rankH + 10);
+  const xOf = i => mL + (nC <= 1 ? 0 : i * (W - mL - mR) / (nC - 1));
   const g = svg.append("g");
-  const colN = n => flowHidden.has(n) ? "#D8CEBC" : cmap[n];  // skrytý = zešedne (jako vývoj šancí)
-  // čerchované vodicí linky
-  order.forEach(n => g.append("line").attr("x1", mL).attr("x2", W - mR).attr("y1", laneY[n]).attr("y2", laneY[n])
-    .attr("stroke", "#E0D7C6").attr("stroke-dasharray", "2 4").attr("stroke-width", 1).attr("opacity", flowHidden.has(n) ? 0.5 : 1));
-  // trajektorie hráče = souvislé barevné pásmo přes kola, kde hlasoval (individuální barva)
-  order.forEach(n => {
-    const xs = cols.map((r, i) => Object.prototype.hasOwnProperty.call(targetMap(r), n) ? i : -1).filter(i => i >= 0);
-    if (xs.length > 1) g.append("line").attr("x1", xOf(xs[0])).attr("x2", xOf(xs[xs.length - 1]))
-      .attr("y1", laneY[n]).attr("y2", laneY[n]).attr("stroke", colN(n)).attr("stroke-width", flowHidden.has(n) ? 1.4 : 2.4).attr("opacity", flowHidden.has(n) ? 0.4 : 0.85);
-  });
-  // uzly + záhlaví sloupců + ranking 1./2./3. nejvíc hlasů pod sloupcem
+  const colN = n => flowHidden.has(n) ? "#D8CEBC" : cmap[n];
+
+  // čerchované vodorovné lajny (pořadí napříč celou sérií)
+  for (let r = 0; r < L; r++) g.append("line").attr("x1", mL).attr("x2", W - mR).attr("y1", laneY(r)).attr("y2", laneY(r))
+    .attr("stroke", "#E0D7C6").attr("stroke-dasharray", "2 5").attr("stroke-width", 1);
+  // svislé čáry kmenovek + záhlaví + ranking pod sloupcem
   cols.forEach((r, i) => {
-    const x = xOf(i), T = targetMap(r), es = elimSet(r);
+    const x = xOf(i);
+    g.append("line").attr("x1", x).attr("x2", x).attr("y1", top - 12).attr("y2", baseY).attr("stroke", "#D8CEBC").attr("stroke-width", 1);
     g.append("text").attr("x", x).attr("y", 14).attr("text-anchor", "middle").attr("font-weight", 800).attr("fill", "#8A8073").attr("font-size", 11).text(`${r.n}.`);
-    Object.keys(T).forEach(n => {
-      if (laneY[n] == null) return;
-      if (es.has(n)) g.append("text").attr("x", x).attr("y", laneY[n] + 5).attr("text-anchor", "middle").attr("font-size", 14).attr("font-weight", 800).attr("fill", flowHidden.has(n) ? "#C2B7A2" : "#C0473E").text("✗")
-        .append("title").text(`${n} — vypadl(a)`);
-      else g.append("circle").attr("cx", x).attr("cy", laneY[n]).attr("r", 3.4).attr("fill", colN(n)).attr("opacity", flowHidden.has(n) ? 0.5 : 1).append("title").text(n);
-    });
-    // ranking pod grafem: 1./2./3. nejvíc hlasů (☠ = kdo nakonec vypadl)
-    voteRanking(r).slice(0, 3).forEach((vr, j) => {
-      const out = es.has(vr.target);
-      g.append("text").attr("x", x).attr("y", baseY + 16 + j * 15).attr("text-anchor", "middle")
-        .attr("font-size", 9.5).attr("font-weight", out ? 800 : 600).attr("fill", out ? "#C0473E" : "#8A8073")
-        .text(`${out ? "✗" : (j + 1) + "."} ${vr.target}`);
+    const byRank = {}; rks[i].forEach(v => (byRank[v.rank] = byRank[v.rank] || []).push(v));
+    Object.keys(byRank).map(Number).sort((a, b) => a - b).slice(0, 3).forEach((rr, li) => {
+      const grp = byRank[rr], out = grp.some(v => elims[i].has(v.target));
+      g.append("text").attr("x", x).attr("y", baseY + 14 + li * 14).attr("text-anchor", "middle").attr("font-size", 9).attr("font-weight", out ? 800 : 600).attr("fill", out ? "#C0473E" : "#8A8073")
+        .text(`${out ? "✗" : (rr + 1) + "."} ${grp.map(v => v.target).join(",")}`);
     });
   });
-  // legenda s vypínáním hráčů (jména jen tady — v grafu nejsou)
+  // hráč = souvislá křivka přes kola, kde hlasoval (cíl→cíl mezi sousedními radami), barva per hráč
+  cmap && Object.keys(cmap).forEach(n => {
+    const pts = []; cols.forEach((r, i) => { if (Ts[i][n] != null) pts.push([xOf(i), yOf(i, Ts[i][n]), i]); });
+    if (pts.length < 1) return;
+    const hidden = flowHidden.has(n), col = colN(n);
+    for (let k = 0; k < pts.length - 1; k++) {
+      const [xa, ya] = pts[k], [xb, yb] = pts[k + 1], mx = (xa + xb) / 2;
+      g.append("path").attr("d", `M${xa},${ya} C${mx},${ya} ${mx},${yb} ${xb},${yb}`).attr("fill", "none")
+        .attr("stroke", col).attr("stroke-width", hidden ? 1.2 : 2.2).attr("opacity", hidden ? 0.35 : 0.7).append("title").text(n);
+    }
+    // uzly hráče v každé radě (✗ když v ní vypadl)
+    pts.forEach(([x, y, i]) => {
+      if (elims[i].has(n)) g.append("text").attr("x", x).attr("y", y + 5).attr("text-anchor", "middle").attr("font-size", 13).attr("font-weight", 800).attr("fill", hidden ? "#C2B7A2" : "#C0473E").text("✗");
+      else g.append("circle").attr("cx", x).attr("cy", y).attr("r", 3.2).attr("fill", col).attr("opacity", hidden ? 0.4 : 1).append("title").text(n);
+    });
+  });
+  // legenda s vypínáním hráčů (individuální barvy)
   const leg = d3.select("#flowFullLegend"); leg.html("");
-  order.forEach(nm => {
+  flowOrder(s).forEach(nm => {
     const chip = leg.append("span").attr("class", "flchip").style("opacity", flowHidden.has(nm) ? 0.35 : 1);
     chip.append("span").attr("class", "fldot").style("background", cmap[nm]);
     chip.append("span").text(nm);
