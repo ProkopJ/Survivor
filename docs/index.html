@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Survivor Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" integrity="sha384-su5kReKyYlIFrI62mbQRKXHzFobMa7BHp1cK6julLPbnYcCW9NIZKJiTODjLPeDh" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<style>
+  :root{--bg:#E8E2D9;--card:#F3EEE4;--ink:#2A2A28;--ink2:#6B6256;--ink3:#8A8073;--orange:#E8623A;--teal:#1F9E92;--line:#D8CEBC;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{overflow-y:scroll;}
+  body{font-family:'Archivo',system-ui,sans-serif;color:var(--ink);line-height:1.5;
+    background:
+      radial-gradient(circle at 82% 20%, #F25C3B 0 5%, rgba(242,92,59,0) 8.2%),
+      linear-gradient(180deg,
+        #9FD3CB 0%, #A9D7CE 38%,
+        #3F73AD 50%, #2E61A0 56%,
+        #3A6FA0 60%, #6E8E8E 63.5%,
+        #C7B98A 67%, #DCC97E 71%,
+        #E2CD7E 78%, #E8E2D9 92%);
+    background-attachment:fixed;background-repeat:no-repeat;}
+  .wrap{max-width:1000px;margin:0 auto;padding:26px 18px 70px;}
+  header h1{font-size:38px;font-weight:900;letter-spacing:-.5px;}
+  header h1 span{color:var(--orange);}
+  header p{color:var(--ink2);font-size:14px;margin-top:3px;}
+  header .slogan{color:var(--orange);font-weight:900;letter-spacing:2px;font-size:15px;margin-top:7px;}
+  .controls{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:20px 0;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;position:sticky;top:10px;z-index:50;box-shadow:0 4px 16px rgba(42,42,40,.10);}
+  label.lb{font-weight:700;font-size:13px;color:var(--ink2);}
+  select{font-family:inherit;font-weight:700;font-size:14px;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:8px 12px;}
+  .seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;}
+  .seg button{border:none;background:#fff;padding:8px 13px;font-weight:700;font-size:13px;cursor:pointer;color:var(--ink2);}
+  .seg button.on{background:var(--orange);color:#fff;}
+  .sliderbox{display:flex;align-items:center;gap:10px;flex:1;min-width:240px;}
+  .sliderbox input[type=range]{flex:1;accent-color:var(--orange);}
+  .playbtn{border:none;background:var(--teal);color:#fff;font-family:inherit;font-weight:800;font-size:13px;border-radius:10px;padding:8px 13px;cursor:pointer;white-space:nowrap;}
+  .playbtn.on{background:var(--orange);}
+  #krLabel{font-weight:800;font-size:14px;width:240px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:16px 0;}
+  .cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
+  .card h2{font-size:19px;font-weight:800;}
+  .sub{color:var(--ink3);font-size:12.5px;margin-bottom:12px;}
+  button.exp{font-size:12px;font-weight:700;border:none;background:var(--ink);color:#fff;border-radius:8px;padding:6px 11px;cursor:pointer;white-space:nowrap;}
+  .cardrow{display:flex;gap:12px;align-items:flex-start;}
+  .cardrow>.card:first-child{flex:1;min-width:0;margin:16px 0;}
+  .sidecard{flex:none;width:74px;margin:16px 0;position:sticky;top:14px;display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px 8px;}
+  .sidecard .ckr{font-weight:900;font-size:17px;color:var(--teal);line-height:1;}
+  .sidecard .sklbl{font-size:9.5px;font-weight:800;color:var(--ink3);letter-spacing:.5px;}
+  .sidecard .skmax,.sidecard .skmin{font-size:11px;font-weight:800;color:var(--ink3);}
+  .sidecard input[type=range]{writing-mode:vertical-lr;direction:rtl;width:8px;height:170px;flex:none;accent-color:var(--teal);cursor:pointer;}
+  .winner{background:#fff;border-radius:10px;padding:8px 13px;font-weight:700;display:inline-block;margin-bottom:10px;}
+  .winner b{color:var(--orange);}
+  svg.viz{width:100%;display:block;}
+  .leaflbl{font-weight:800;font-size:14px;}
+  .tmlabel{font-weight:800;fill:#fff;}
+  .blocslegend{margin-top:14px;padding-top:13px;border-top:1px dashed var(--line);}
+  .blocslegend-h{font-size:12px;font-weight:800;color:var(--ink3);margin-bottom:9px;letter-spacing:.3px;}
+  .fllegend{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px dashed var(--line);}
+  .flchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;border:1px solid var(--line);border-radius:18px;padding:3px 10px;user-select:none;}
+  .fldot{width:11px;height:11px;border-radius:50%;display:inline-block;}
+  .blocs{display:flex;gap:14px;flex-wrap:wrap;}
+  .bloc{flex:1;min-width:180px;background:#fff;border-radius:12px;padding:12px 14px;border-top:5px solid var(--orange);}
+  .bloc h3{font-size:14px;font-weight:800;margin-bottom:8px;}
+  .chip{display:inline-block;background:var(--bg);border-radius:20px;padding:4px 11px;margin:3px 3px 0 0;font-size:13px;font-weight:700;}
+  footer{color:var(--ink3);font-size:12.5px;margin-top:28px;border-top:1px solid var(--line);padding-top:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>SURVIVOR <span>DASHBOARD</span></h1>
+    <p class="slogan">PŘEŽÍT · PŘEHRÁT · PŘELSTÍT · PŘEDPOVÍDAT</p>
+    <p>Síťový model predikce · <b>predikce, ne spoiler</b></p>
+  </header>
+
+  <div class="controls">
+    <label class="lb">Série</label>
+    <select id="seriesSel"></select>
+    <span class="seg" id="metricWrap">
+      <button data-m="btw" class="on">Betweenness</button>
+      <button data-m="eigbtw">Eig + btw</button>
+    </span>
+    <span class="sliderbox" id="sliderBox">
+      <button id="playBtn" class="playbtn">▶ Přehrát</button>
+      <label class="lb">Kolo</label>
+      <input type="range" id="krSlider" min="0" max="0" value="0" step="1">
+      <span id="krLabel"></span>
+    </span>
+  </div>
+
+  <div class="card" id="rankCard">
+    <div class="cardhead"><div><h2>Šance na celkové vítězství</h2><div class="sub" id="rankSub"></div></div><button class="exp" data-t="rankCard">⬇ PNG</button></div>
+    <div id="winnerBox"></div>
+    <svg id="rankSvg" class="viz" height="380"></svg>
+  </div>
+
+  <div class="card" id="tmCard">
+    <div class="cardhead"><div><h2>Treemapa — kdo válcuje</h2><div class="sub">Velikost = šance na výhru · seskupení = na koho hlasoval v tomto kole</div></div><button class="exp" data-t="tmCard">⬇ PNG</button></div>
+    <svg id="tmSvg" class="viz" height="430"></svg>
+    <div class="blocslegend"><div class="blocslegend-h">Hlasovací bloky tohoto kola — kdo na koho hlasoval</div><div class="blocs" id="blocs"></div></div>
+  </div>
+
+  <div class="card" id="treeCard">
+    <div class="cardhead"><div><h2>Strom aliancí</h2><div class="sub">Kdo s kým drží podle hlasování (kumulativně) · šedě přeškrtnutí = vypadli</div></div><button class="exp" data-t="treeCard">⬇ PNG</button></div>
+    <svg id="treeSvg" class="viz" height="470"></svg>
+  </div>
+
+  <div class="card" id="pairsCard">
+    <div class="cardhead"><div><h2>Silné aliance</h2><div class="sub">Dvojice s nejvyšší shodou hlasů (celá série) · silnější oblouk = pevnější spojenectví</div></div><button class="exp" data-t="pairsCard">⬇ PNG</button></div>
+    <svg id="pairsSvg" class="viz" height="300"></svg>
+  </div>
+
+  <div class="card" id="flowCard">
+    <div class="cardhead"><div><h2>Přesuny mezi koly</h2><div class="sub">Kdo volil s kým minulé vs toto kolo · barva = blok z minulého kola (drží spolu, nebo se rozpadl)</div></div><button class="exp" data-t="flowCard">⬇ PNG</button></div>
+    <svg id="flowSvg" class="viz" height="360"></svg>
+  </div>
+
+  <div class="card" id="finaleCard" style="display:none">
+    <div class="cardhead"><div><h2>Finále</h2><div class="sub">Finalisté, umístění a hlasy poroty</div></div><button class="exp" data-t="finaleCard">⬇ PNG</button></div>
+    <div id="finaleBox"></div>
+  </div>
+
+  <div class="card" id="flowFullCard" style="display:none">
+    <div class="cardhead"><div><h2>Pás přesunů — celá série</h2><div class="sub">Sloupce = kmenovky · čáry = hráči · klikni na jméno pro skrytí</div></div><button class="exp" data-t="flowFullCard">⬇ PNG</button></div>
+    <svg id="flowFullSvg" class="viz" height="360"></svg>
+    <div id="flowFullLegend" class="fllegend"></div>
+  </div>
+
+  <div class="card" id="tlCard">
+    <div class="cardhead"><div><h2>Vývoj šancí v čase</h2><div class="sub">Jak se šance na výhru mění kolo po kole</div></div><button class="exp" data-t="tlCard">⬇ PNG</button></div>
+    <div style="position:relative;height:360px"><canvas id="tlChart"></canvas></div>
+  </div>
+
+  <footer><b>@survivor.predikce</b> · síťový model · kód a metodika na GitHubu · predikce, ne spoiler</footer>
+</div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
