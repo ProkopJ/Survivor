@@ -409,7 +409,7 @@ function renderUrns(s) {
           <div style="width:${n ? voda / n * 100 : 50}%;background:#3E6FA3;display:flex;align-items:center;justify-content:center">voda ${voda}</div>
         </div>
         <div style="margin-top:10px;font-size:13px;color:#2A2A28"><b>Odhad podílu vody: ${(bg.bayes_mean ?? vodaPct).toFixed ? (bg.bayes_mean ?? vodaPct).toFixed(0) : bg.bayes_mean} %</b>${bg.ci_lo != null ? ` <span style="color:#8A8073">(90% interval ${bg.ci_lo.toFixed(0)}–${bg.ci_hi.toFixed(0)} %)</span>` : ""}</div>
-        <div style="margin-top:4px;font-size:11.5px;color:#8A8073;line-height:1.5">Bayesovský odhad (Beta-Binomial) z ${voda} vody : ${krev} krev, n=${n}. ${bg.p_gt_third != null ? `Pravděpodobnost, že podíl vody je vyšší než lidová teze 1/3, je <b>${bg.p_gt_third.toFixed(0)} %</b>.` : ""} Vzorek je malý → interval je široký.</div>
+        <div style="margin-top:4px;font-size:11.5px;color:#8A8073;line-height:1.5">Bayesovský odhad (Beta-Binomial) z ${voda} vody : ${krev} krev, n=${n}. ${bg.p_gt_third != null ? `Pravděpodobnost, že podíl vody je vyšší než produkcí uváděná 1/3, je <b>${bg.p_gt_third.toFixed(0)} %</b>.` : ""} Vzorek je malý → interval je široký.</div>
       </div>
       <div style="flex:1;min-width:220px;background:#fff;border:1px solid #D8CEBC;border-radius:12px;padding:14px 16px">
         <div style="font-size:12px;font-weight:800;color:#8A8073;margin-bottom:10px">TATO SÉRIE — pořadí nádob</div>
@@ -418,7 +418,7 @@ function renderUrns(s) {
       </div>
     </div>
     <div style="background:#fff;border:1px solid #D8CEBC;border-radius:12px;padding:14px 16px">
-      <div style="font-size:12px;font-weight:800;color:#8A8073;margin-bottom:6px">ŠANCE NA VODU V PŘÍŠTÍM DÍLE (teoreticky, los 1/3)</div>
+      <div style="font-size:12px;font-weight:800;color:#8A8073;margin-bottom:6px">ŠANCE NA VODU V PŘÍŠTÍM DÍLE (teoreticky, los 1/3 dle produkce)</div>
       <div style="font-size:13px;color:#2A2A28;margin-bottom:10px">${sk > 0
         ? `Naposledy padla <b>krev ${sk}×</b> po sobě. Že voda přijde <b>aspoň jednou</b> během příštích ${sk} kol, by při nezávislém losu bylo <b>${cum(sk).toFixed(0)} %</b>.`
         : `Voda padla nedávno — žádná série samé krve neběží.`}</div>
