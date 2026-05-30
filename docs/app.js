@@ -386,6 +386,50 @@ function renderFlow(idx) {
   });
 }
 
+// ===== Nádoba osudu: krev vs voda (empirie napříč sériemi + kumulativní šance na vodu dopředu) =====
+function renderUrns(s) {
+  const box = document.getElementById("urnBox");
+  // empirie přes VŠECHNY série dohromady (post-merge)
+  let krev = 0, voda = 0;
+  Object.values(D.series).forEach(se => { if (se.urns) { krev += se.urns.krev; voda += se.urns.voda; } });
+  const n = krev + voda, vodaPct = n ? voda / n * 100 : 0;
+  const u = s.urns || { seq: [], krev: 0, voda: 0, streak_krev: 0 };
+  const sk = u.streak_krev;
+  // kumulativní: P(aspoň 1 voda za K kol) při nezávislém losu 1/3
+  const cum = K => (1 - Math.pow(2 / 3, K)) * 100;
+  // tato série: barevná sekvence krev/voda
+  const seqDots = u.seq.map(x => `<span style="display:inline-block;width:22px;height:22px;border-radius:5px;margin:2px;background:${x === "voda" ? "#3E6FA3" : "#C0473E"};" title="${x}"></span>`).join("");
+  box.innerHTML = `
+    <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px">
+      <div style="flex:1;min-width:220px;background:#fff;border:1px solid #D8CEBC;border-radius:12px;padding:14px 16px">
+        <div style="font-size:12px;font-weight:800;color:#8A8073;margin-bottom:10px">EMPIRIE — všechny série po sloučení</div>
+        <div style="display:flex;height:30px;border-radius:7px;overflow:hidden;font-weight:800;font-size:13px;color:#fff">
+          <div style="width:${n ? krev / n * 100 : 50}%;background:#C0473E;display:flex;align-items:center;justify-content:center">krev ${krev}</div>
+          <div style="width:${n ? voda / n * 100 : 50}%;background:#3E6FA3;display:flex;align-items:center;justify-content:center">voda ${voda}</div>
+        </div>
+        <div style="margin-top:10px;font-size:13px;color:#2A2A28"><b>Voda padla v ${vodaPct.toFixed(0)} %</b> kol (${voda} z ${n}).</div>
+        <div style="margin-top:6px;font-size:11.5px;color:#8A8073;line-height:1.5">Lidová teze říká „voda = 1/3 (33 %)". Zatím to data nepotvrzují, ale vzorek je malý (n=${n}), takže rozdíl není průkazný.</div>
+      </div>
+      <div style="flex:1;min-width:220px;background:#fff;border:1px solid #D8CEBC;border-radius:12px;padding:14px 16px">
+        <div style="font-size:12px;font-weight:800;color:#8A8073;margin-bottom:10px">TATO SÉRIE — pořadí nádob</div>
+        <div style="line-height:1.2">${seqDots || '<span style="color:#A89E8C;font-size:13px">zatím žádná data</span>'}</div>
+        <div style="margin-top:10px;font-size:12px"><span style="display:inline-block;width:11px;height:11px;background:#C0473E;border-radius:3px;vertical-align:middle"></span> krev &nbsp; <span style="display:inline-block;width:11px;height:11px;background:#3E6FA3;border-radius:3px;vertical-align:middle"></span> voda</div>
+      </div>
+    </div>
+    <div style="background:#fff;border:1px solid #D8CEBC;border-radius:12px;padding:14px 16px">
+      <div style="font-size:12px;font-weight:800;color:#8A8073;margin-bottom:6px">ŠANCE NA VODU V PŘÍŠTÍM DÍLE (teoreticky, los 1/3)</div>
+      <div style="font-size:13px;color:#2A2A28;margin-bottom:10px">${sk > 0
+        ? `Naposledy padla <b>krev ${sk}×</b> po sobě. Že voda přijde <b>aspoň jednou</b> během příštích ${sk} kol, by při nezávislém losu bylo <b>${cum(sk).toFixed(0)} %</b>.`
+        : `Voda padla nedávno — žádná série samé krve neběží.`}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${[1, 2, 3, 4, 5].map(K => `<div style="flex:1;min-width:70px;text-align:center;background:#F3EEE4;border-radius:8px;padding:8px 4px">
+          <div style="font-size:11px;color:#8A8073;font-weight:700">za ${K} ${K < 5 ? "kola" : "kol"}</div>
+          <div style="font-size:16px;font-weight:800;color:#3E6FA3">${cum(K).toFixed(0)} %</div></div>`).join("")}
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:#A89E8C;line-height:1.5;font-style:italic">⚠️ Pozor: pro každý jednotlivý díl je šance pořád 1/3 — los nemá paměť. „Už dlouho nepadla, tak teď musí" je <a href="https://cs.wikipedia.org/wiki/Klam_hr%C3%A1%C4%8De" target="_blank" rel="noopener" style="color:#1F9E92">klam hráče</a>. Rostoucí čísla výše platí jen jako předpověď „aspoň jednou za K kol" učiněná dopředu.</div>
+    </div>`;
+}
+
 // ===== Finále: Pás přesunů — STEJNÝ alluvial jako "Přesuny mezi koly", ale přes CELOU sérii =====
 // Sloupce = kmenovky, cíle na lajnách dle pořadí; hráč = souvislá křivka tekoucí mezi svými cíli.
 // Rozdíl od renderFlow: barva per HRÁČ (ne per blok) + vypínání hráčů (zešednutí).
@@ -485,6 +529,10 @@ function render(reset = true) {
   document.getElementById("pairsCard").style.display = (isFin || !hasPairs) ? "none" : "";
   document.getElementById("finaleCard").style.display = isFin ? "" : "none";
   document.getElementById("flowFullCard").style.display = isFin ? "" : "none";
+  // Nádoba osudu: ukázat vždy, když má série data (i živá V), ne jen ve finále
+  const hasUrns = s.urns && (s.urns.krev + s.urns.voda) > 0;
+  document.getElementById("urnCard").style.display = hasUrns ? "" : "none";
+  if (hasUrns) renderUrns(s);
   const treeCard = document.getElementById("treeCard"), tmCard = document.getElementById("tmCard");
   treeCard.style.display = "";
   const wrap = treeCard.parentNode, tlCard = document.getElementById("tlCard");

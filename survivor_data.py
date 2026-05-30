@@ -82,14 +82,18 @@ def load_series(series):
             d["episodes"][r[0]] = {"immunity": norm(r[2]) if len(r) > 2 and r[2] else None}
 
     ws = wb["Nádoby a duely"]; h = [c.value for c in ws[1]]; has_day = "Den" in (h or [])
+    nadoba_c = h.index("Nádoba") if h and "Nádoba" in h else (3 if has_day else 2)
     for r in ws.iter_rows(min_row=2, values_only=True):
         if r[0] is None:
             continue
         elim = r[6] if has_day else r[5]
         most = r[2] if has_day else r[1]
-        nd = d["nadoby"].setdefault(r[0], {"most_voted": None, "eliminated": []})
+        nadoba = r[nadoba_c] if nadoba_c < len(r) else None
+        nd = d["nadoby"].setdefault(r[0], {"most_voted": None, "eliminated": [], "nadoba": None})
         if most and not nd["most_voted"]:
             nd["most_voted"] = norm(most)
+        if nadoba and not nd.get("nadoba"):
+            nd["nadoba"] = str(nadoba).strip().lower()
         for nm in _split_names(elim):
             nm = norm(nm)
             if nm and nm not in nd["eliminated"]:

@@ -157,9 +157,18 @@ def build_series(series):
         order = sorted(finalists, key=lambda n: (-jc.get(n, 0), fpos(n)))
         fin = {"finalists": [{"nick": disp(n), "pos": i + 1, "jury": jc.get(n, 0)} for i, n in enumerate(order)],
                "winner": disp(order[0]) if order else disp_win(WINNERS[series], nickmap)}
+    # Nádoba osudu (krev/voda): sekvence post-merge kol + počty + běžící série bez vody
+    urn_seq = [d["nadoby"].get(tc, {}).get("nadoba") for tc in played]
+    urn_seq = [u for u in urn_seq if u in ("krev", "voda")]
+    krev = urn_seq.count("krev"); voda = urn_seq.count("voda")
+    streak_krev = 0  # kolik kol po sobě od konce padla krev (bez vody)
+    for u in reversed(urn_seq):
+        if u == "krev": streak_krev += 1
+        else: break
+    urns = {"seq": urn_seq, "krev": krev, "voda": voda, "streak_krev": streak_krev}
     return {"label": {"III": "Survivor III (2024)", "IV": "Survivor IV (2025)", "V": "Survivor V (2026)"}[series],
             "live": series == "V", "winner": (disp_win(WINNERS[series], nickmap)),
-            "rounds": rounds, "timeline": timeline, "finale": fin, "pairs": pairs}
+            "rounds": rounds, "timeline": timeline, "finale": fin, "pairs": pairs, "urns": urns}
 
 def disp_win(w, nickmap):
     if not w: return None
