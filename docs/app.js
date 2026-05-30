@@ -393,6 +393,7 @@ function renderUrns(s) {
   let krev = 0, voda = 0;
   Object.values(D.series).forEach(se => { if (se.urns) { krev += se.urns.krev; voda += se.urns.voda; } });
   const n = krev + voda, vodaPct = n ? voda / n * 100 : 0;
+  const bg = D.urns_global || {};  // bayesovský odhad (Beta-Binomial)
   const u = s.urns || { seq: [], krev: 0, voda: 0, streak_krev: 0 };
   const sk = u.streak_krev;
   // kumulativní: P(aspoň 1 voda za K kol) při nezávislém losu 1/3
@@ -407,8 +408,8 @@ function renderUrns(s) {
           <div style="width:${n ? krev / n * 100 : 50}%;background:#C0473E;display:flex;align-items:center;justify-content:center">krev ${krev}</div>
           <div style="width:${n ? voda / n * 100 : 50}%;background:#3E6FA3;display:flex;align-items:center;justify-content:center">voda ${voda}</div>
         </div>
-        <div style="margin-top:10px;font-size:13px;color:#2A2A28"><b>Voda padla v ${vodaPct.toFixed(0)} %</b> kol (${voda} z ${n}).</div>
-        <div style="margin-top:6px;font-size:11.5px;color:#8A8073;line-height:1.5">Lidová teze říká „voda = 1/3 (33 %)". Zatím to data nepotvrzují, ale vzorek je malý (n=${n}), takže rozdíl není průkazný.</div>
+        <div style="margin-top:10px;font-size:13px;color:#2A2A28"><b>Odhad podílu vody: ${(bg.bayes_mean ?? vodaPct).toFixed ? (bg.bayes_mean ?? vodaPct).toFixed(0) : bg.bayes_mean} %</b>${bg.ci_lo != null ? ` <span style="color:#8A8073">(90% interval ${bg.ci_lo.toFixed(0)}–${bg.ci_hi.toFixed(0)} %)</span>` : ""}</div>
+        <div style="margin-top:4px;font-size:11.5px;color:#8A8073;line-height:1.5">Bayesovský odhad (Beta-Binomial) z ${voda} vody : ${krev} krev, n=${n}. ${bg.p_gt_third != null ? `Pravděpodobnost, že podíl vody je vyšší než lidová teze 1/3, je <b>${bg.p_gt_third.toFixed(0)} %</b>.` : ""} Vzorek je malý → interval je široký.</div>
       </div>
       <div style="flex:1;min-width:220px;background:#fff;border:1px solid #D8CEBC;border-radius:12px;padding:14px 16px">
         <div style="font-size:12px;font-weight:800;color:#8A8073;margin-bottom:10px">TATO SÉRIE — pořadí nádob</div>

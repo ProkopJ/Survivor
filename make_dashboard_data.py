@@ -175,6 +175,21 @@ def disp_win(w, nickmap):
     n = nickmap.get(w, w); return REN.get(n, n)
 
 DATA = {"series_order": ["V", "IV", "III"], "series": {s: build_series(s) for s in ["V", "IV", "III"]}}
+
+# Globální bayesovský odhad podílu vody (Beta-Binomial, uniform prior Beta(1,1))
+_voda = sum(DATA["series"][s]["urns"]["voda"] for s in DATA["series"])
+_krev = sum(DATA["series"][s]["urns"]["krev"] for s in DATA["series"])
+_a, _b = 1 + _voda, 1 + _krev
+try:
+    from scipy.stats import beta as _beta
+    _mean = _a / (_a + _b)
+    _lo, _hi = float(_beta.ppf(0.05, _a, _b)), float(_beta.ppf(0.95, _a, _b))
+    _p_gt_third = float(1 - _beta.cdf(1/3, _a, _b))
+except Exception:
+    _mean = _a / (_a + _b); _lo = _hi = _mean; _p_gt_third = None
+DATA["urns_global"] = {"voda": _voda, "krev": _krev, "n": _voda + _krev,
+                       "bayes_mean": round(_mean * 100, 1), "ci_lo": round(_lo * 100, 1),
+                       "ci_hi": round(_hi * 100, 1), "p_gt_third": (round(_p_gt_third * 100, 1) if _p_gt_third is not None else None)}
 open(OUT, "w", encoding="utf-8").write("window.SURVIVOR = " + json.dumps(DATA, ensure_ascii=False) + ";")
 print("OK ->", OUT)
 for s in ["V", "IV", "III"]:
