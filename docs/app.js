@@ -280,7 +280,9 @@ function renderFlow(idx) {
   // L = max počet lajn (různých příček) přes všechna kola; maxNames = max hlasujících
   const L = Math.max(1, ...s.rounds.map(r => maxRank(voteRanking(r)) + 1));
   const maxNames = Math.max(...s.rounds.map(r => Object.keys(targetMap(r)).length));
-  const colorByRank = r => r >= FLOWPAL.length ? "#C2B7A2" : FLOWPAL[r];
+  // barva = IDENTITA cíle (každý cíl vlastní barvu → remízoví na stejné lajně mají odlišné barvy).
+  // pořadí v ranku je unikátní: vyhlasovaný = index 0 = oranžová, pak dle počtu hlasů.
+  const colorByTarget = (rk, t) => { const i = rk.findIndex(x => x.target === t); return i < 0 || i >= FLOWPAL.length ? "#C2B7A2" : FLOWPAL[i]; };
 
   const top = 34, nameGap = 23;
   const names = Object.keys(Tcur).sort((a, b) =>
@@ -322,7 +324,7 @@ function renderFlow(idx) {
   });
   // barva hráče = MINULÝ blok (kam hlasoval v předchozí radě) → vidět, jak se starý blok rozpadl
   // kdo minule nehlasoval (nově aktivní) = šedá; vyřazený v aktuální radě = čerchovaná čára
-  const playerColor = p => Tprev[p] != null ? colorByRank(rankIn(rkPrev, Tprev[p])) : "#C2B7A2";
+  const playerColor = p => Tprev[p] != null ? colorByTarget(rkPrev, Tprev[p]) : "#C2B7A2";
   names.forEach(p => {
     const col = playerColor(p), yN = nameY[p], hadPrev = Tprev[p] != null, elimNow = curElim.has(p);
     const yPrev = hadPrev ? targetY(rkPrev, Tprev[p]) : yN, yCur = targetY(rkCur, Tcur[p]);
@@ -345,8 +347,8 @@ function renderFlow(idx) {
   g.append("text").attr("x", xR).attr("y", 15).attr("text-anchor", "middle").attr("font-weight", 800).attr("font-size", 12).attr("fill", "#E8623A").text(`${cur.n}. kmenová rada`);
   // uzly cílů na své lajně (idx-2 šedě, idx-1 a idx barevně dle pořadí), velikost ~ hlasy
   if (prev2) rk2.forEach(v => g.append("circle").attr("cx", x2).attr("cy", targetY(rk2, v.target)).attr("r", 3 + v.votes * 0.7).attr("fill", "#C2B7A2").attr("opacity", 0.55).append("title").text(`${prev2.n}. KR · ${v.target}: ${v.votes}`));
-  rkPrev.forEach(v => g.append("circle").attr("cx", xL).attr("cy", targetY(rkPrev, v.target)).attr("r", 4 + v.votes).attr("fill", colorByRank(v.rank)).attr("opacity", 0.72).append("title").text(`${prev.n}. · ${v.target}: ${v.votes}`));
-  rkCur.forEach(v => g.append("circle").attr("cx", xR).attr("cy", targetY(rkCur, v.target)).attr("r", 4 + v.votes).attr("fill", colorByRank(v.rank)).append("title").text(`${cur.n}. · ${v.target}: ${v.votes}`));
+  rkPrev.forEach(v => g.append("circle").attr("cx", xL).attr("cy", targetY(rkPrev, v.target)).attr("r", 4 + v.votes).attr("fill", colorByTarget(rkPrev, v.target)).attr("opacity", 0.72).append("title").text(`${prev.n}. · ${v.target}: ${v.votes}`));
+  rkCur.forEach(v => g.append("circle").attr("cx", xR).attr("cy", targetY(rkCur, v.target)).attr("r", 4 + v.votes).attr("fill", colorByTarget(rkCur, v.target)).append("title").text(`${cur.n}. · ${v.target}: ${v.votes}`));
   // popis pod sloupcem: Vyhlasovaný / 2. / 3. nejvíce hlasů (remíza = víc cílů na jedné příčce)
   const labelFor = r => r === 0 ? "Vyhlasovaný" : `${r + 1}. nejvíce hlasů`;
   [[prev, xL], [cur, xR]].forEach(([rd, x]) => {
