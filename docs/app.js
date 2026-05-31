@@ -52,7 +52,8 @@ function renderRanking(r) {
   document.getElementById("rankSub").textContent = `Metrika: ${state.metric === "btw" ? "betweenness (hlavní)" : "eigenvector + betweenness"}` + (r.eliminated ? ` · vypadl(a): ${r.eliminated}` : "");
   document.getElementById("winnerBox").innerHTML = `<div class="winner">Favorit: <b>${rows[0].nick}</b> · ${rows[0][state.metric]} %</div>`;
   const svg = d3.select("#rankSvg");
-  const W = svg.node().clientWidth, rowH = 30, padT = 8, bh = rowH - 8, m = { l: 96, r: 56 };
+  const W = svg.node().clientWidth, narrow = W < 460, rowH = 30, padT = 8, bh = rowH - 8;
+  const m = narrow ? { l: 70, r: 46 } : { l: 96, r: 56 };  // úzký displej → kratší okraje, delší bary
   // Konstantní výška = rezervace pro max. počet hráčů v sérii → obsah neposkakuje při posunu kol
   const nMax = Math.max(...D.series[state.series].rounds.map(rr => rr.ranking.length));
   svg.attr("height", padT * 2 + nMax * rowH);
@@ -119,8 +120,12 @@ function renderTreemap(r) {
 function renderTree(r) {
   const svg = d3.select("#treeSvg"); svg.selectAll("*").remove();
   if (!r.tree) return;
-  const W = svg.node().clientWidth, H = 470, m = { l: 26, r: 26, t: 16, b: 130 };
+  const W = svg.node().clientWidth, narrow = W < 460;
+  // úzký displej: menší font listů + větší pravý okraj, ať rotovaná jména nevytékají
+  const lblFs = narrow ? 10.5 : 14, H = narrow ? 430 : 470;
+  const m = { l: narrow ? 14 : 26, r: narrow ? 58 : 26, t: 16, b: narrow ? 108 : 130 };
   const PW = W - m.l - m.r, PH = H - m.t - m.b;
+  svg.attr("height", H);
   const X = lp => m.l + lp * PW;
   const Y = dx => m.t + dx * PH;
   const line = d3.line().x(d => X(d[1])).y(d => Y(d[0]));
@@ -148,6 +153,7 @@ function renderTree(r) {
   const g = svg.selectAll("g.lf").data(r.tree.leaves).enter().append("g").attr("transform", d => `translate(${X(d.y)},${yb})`);
   g.append("circle").attr("r", 6).attr("fill", d => d.e ? "#A89E8C" : (blocColor[d.l] || "#2A2A28")).attr("stroke", "#F3EEE4").attr("stroke-width", 2);
   g.append("text").attr("transform", "rotate(38)").attr("x", 11).attr("dy", "0.32em").attr("class", "leaflbl")
+    .style("font-size", lblFs + "px")
     .attr("fill", d => d.e ? "#A89E8C" : "#2A2A28").style("text-decoration", d => d.e ? "line-through" : "none").text(d => d.l);
 }
 
@@ -539,7 +545,10 @@ function render(reset = true) {
   const s = D.series[state.series], nR = s.rounds.length;
   const isFin = s.finale && state.roundIdx >= nR;
   prevFin = isFin;
-  document.getElementById("krLabel").textContent = isFin ? "Finále" : `${s.rounds[state.roundIdx].n}. kmenová rada po sloučení`;
+  // na úzkém displeji zkrácený popisek kola, ať se vejde do panelu
+  const krShort = window.innerWidth < 560;
+  document.getElementById("krLabel").textContent = isFin ? "Finále"
+    : (krShort ? `${s.rounds[state.roundIdx].n}. rada` : `${s.rounds[state.roundIdx].n}. kmenová rada po sloučení`);
   ["rankCard", "tmCard"].forEach(id => document.getElementById(id).style.display = isFin ? "none" : "");
   // Prázdné sekce skryj, dokud nejsou data (objeví se samy po pár kolech).
   const hasPairs = s.pairs && s.pairs.length, hasFlow = nR >= 2;
