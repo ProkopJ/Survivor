@@ -9,7 +9,9 @@ from survivor_data import load_series, get_active, get_post_merge_tcs, POST_MERG
 from collections import Counter
 
 OUT = os.environ.get("DASH_OUT", os.path.join(os.path.dirname(__file__), "docs", "data.js"))
-PAL = ["#1F9E92", "#E8623A", "#E7AE3A", "#3E6FA3"]; MUTED = "#C2B7A2"; REN = {"Johana N.": "Johy"}
+PAL = ["#1F9E92", "#E8623A", "#E7AE3A", "#3E6FA3"]; MUTED = "#C2B7A2"
+# Přejmenování pro zobrazení (web + exporty). Klíč = přezdívka z Excelu, hodnota = zkratka.
+REN = {"Johana N.": "Johy", "Stanislav": "Standa", "Otakar": "Oťas", "Viviane": "Vivi"}
 WINNERS = {"IV": "Pavel Tóth", "III": 'Martin "Mikyř" Mikyska', "V": None}
 
 def load_any(series):
