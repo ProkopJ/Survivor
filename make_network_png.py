@@ -84,9 +84,9 @@ def main():
     bb = t1.get_window_extent(renderer=fig.canvas.get_renderer())
     inv = ax.transData.inverted()
     x_end = inv.transform((bb.x1, bb.y0))[0]
-    ax.text(x_end, 1.34, "SÍŤ HLASŮ", font=font(34, "black"), color=ORANGE, va="top")
-    ax.text(-1.28, 1.17, f"{label} · {r['n']}. kmenová rada · šipka = kdo na koho hlasoval",
-            font=font(13.5, "semibold"), color=INK2, va="top")
+    ax.text(x_end, 1.34, "MODEL PREDIKCE", font=font(34, "black"), color=ORANGE, va="top")
+    ax.text(-1.28, 1.17, f"{label} · {r['n']}. kmenová rada · velikost uzlu = šance na výhru (betweenness) · šipka = hlas",
+            font=font(12.5, "semibold"), color=INK2, va="top")
 
     R = 0.135  # vztažný poloměr uzlu
     rad = {n: R * (0.62 + 1.5 * math.sqrt(rank.get(n, 3) / 100.0)) for n in nodes}
@@ -124,7 +124,7 @@ def main():
                     color=ELIM, ha="center", va="top", zorder=4)
 
     # patička
-    ax.text(0, -1.46, "@survivor.predikce · síťový model · velikost uzlu = šance na výhru",
+    ax.text(0, -1.46, "@survivor.predikce · predikce vítěze ze sítě hlasování · ne spoiler",
             font=font(12.5, "semibold"), color=INK2, ha="center", va="bottom")
 
     out = os.path.join(os.path.dirname(HERE), f"V_sit_hlasu_{series}_KR{r['kr']}.png" if False
