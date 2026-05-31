@@ -9,14 +9,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" integrity="sha384-su5kReKyYlIFrI62mbQRKXHzFobMa7BHp1cK6julLPbnYcCW9NIZKJiTODjLPeDh" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
-  :root{--bg:#E8E2D9;--card:#F3EEE4;--ink:#2A2A28;--ink2:#6B6256;--ink3:#8A8073;--orange:#E8623A;--teal:#1F9E92;--line:#D8CEBC;}
+  :root{--bg:#DAD2C4;--card:#F7F3EB;--ink:#2A2A28;--ink2:#6B6256;--ink3:#8A8073;--orange:#E8623A;--teal:#1F9E92;--line:#CFC4B0;}
   *{box-sizing:border-box;margin:0;padding:0;}
   html{overflow-y:scroll;}
-  body{font-family:'Archivo',system-ui,sans-serif;color:var(--ink);line-height:1.5;
-    background:
-      radial-gradient(circle at 85% 96px, rgba(232,98,58,0.16) 0 44px, rgba(232,98,58,0) 150px),
-      var(--bg);
-    background-attachment:scroll;background-repeat:no-repeat;}
+  body{font-family:'Archivo',system-ui,sans-serif;color:var(--ink);line-height:1.5;background:var(--bg);}
   .wrap{max-width:1180px;margin:0 auto;padding:26px 18px 70px;}
   header h1{font-size:38px;font-weight:900;letter-spacing:-.5px;}
   header h1 span{color:var(--orange);}
@@ -58,7 +54,7 @@
     .rail input[type=range]{writing-mode:horizontal-tb;direction:ltr;width:auto;height:auto;flex:1;}
     .rail #krLabel{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   }
-  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:16px 0;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:16px 0;box-shadow:0 6px 20px rgba(58,50,38,.12),0 1px 3px rgba(58,50,38,.08);}
   .cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
   .card h2{font-size:19px;font-weight:800;}
   .sub{color:var(--ink3);font-size:12.5px;margin-bottom:12px;}
