@@ -149,7 +149,11 @@ def build_series(series):
     fin = None
     if series != "V" and played:
         from collections import Counter
-        finalists = get_active(d, played[-1] + 1, start)
+        # Finalisté = zbývající hráči, kteří NEBYLI v porotě. Poslední vyřazený před finále
+        # (přes duel/volbu) je v porotě → nepatří mezi finalisty (III Martin, IV Filip).
+        in_jury = {p["name"] for p in d["players"] if p.get("in_jury")}
+        active_end = get_active(d, played[-1] + 1, start)
+        finalists = [n for n in active_end if n not in in_jury] or active_end
         jc = Counter(t for _, t in d.get("porota", []))
         def fpos(n):
             fp = [p["final_pos"] for p in d["players"] if p["name"] == n]
