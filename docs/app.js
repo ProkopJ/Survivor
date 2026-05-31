@@ -14,7 +14,8 @@ function setSeries(k) {
   state.series = k;
   const s = D.series[k]; const n = s.rounds.length; const hasFin = !!s.finale;
   const max = Math.max(0, n - 1 + (hasFin ? 1 : 0));
-  slider.max = max; state.roundIdx = n - 1; slider.value = state.roundIdx;
+  // dohraná série → otevři rovnou na finále (max); živá série → poslední odehrané kolo
+  slider.max = max; state.roundIdx = hasFin ? max : n - 1; slider.value = state.roundIdx;
   document.getElementById("sliderBox").style.display = max > 0 ? "" : "none";
   render();
 }
@@ -549,13 +550,18 @@ function render(reset = true) {
   renderTimeline(state.series);
   renderPairs(s);
   const ridx = Math.min(state.roundIdx, nR - 1);
+  const urnCard = document.getElementById("urnCard");
   if (isFin) {
     renderFinale(s); renderFlowFull();
     treeCard.querySelector("h2").textContent = "Finální strom aliancí";
-    if (tlCard.nextSibling !== treeCard) wrap.insertBefore(treeCard, tlCard.nextSibling); // strom až za časovou osu (3. karta)
+    if (tlCard.nextSibling !== treeCard) wrap.insertBefore(treeCard, tlCard.nextSibling); // strom až za časovou osu
+    // Nádoba osudu jako PŘEDPOSLEDNÍ dlaždice ve finále (těsně před stromem)
+    if (hasUrns && treeCard.previousSibling !== urnCard) wrap.insertBefore(urnCard, treeCard);
     renderTree(s.rounds[nR - 1]);
     return;
   }
+  // mimo finále: urnCard zpět na své místo (za finaleCard, kde je v HTML)
+  if (hasUrns && urnCard.previousSibling !== document.getElementById("finaleCard")) wrap.insertBefore(urnCard, document.getElementById("flowFullCard"));
   if (tmCard.nextSibling !== treeCard) wrap.insertBefore(treeCard, tmCard.nextSibling); // zpět hned za treemapu
   treeCard.querySelector("h2").textContent = "Strom aliancí";
   DYN.forEach(id => renderCard(id, ridx));
