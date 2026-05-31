@@ -48,15 +48,18 @@ def load_series(series):
 
     ws = wb["Hráči"]; h = [c.value for c in ws[1]]
     has_nick = "Přezdívka" in h
+    id_c = h.index("ID") if "ID" in h else None
     nick_c = h.index("Přezdívka") if has_nick else (h.index("Jméno") if "Jméno" in h else 1)
     name_c = h.index("Plné jméno") if "Plné jméno" in h else nick_c
     pos_c = h.index("Finální pozice") if "Finální pozice" in h else 3
     jur_c = h.index("V porotě?") if "V porotě?" in h else 4
     kmen_c = h.index("Kmen před sloučením") if "Kmen před sloučením" in h else None
-    for r in ws.iter_rows(min_row=2, values_only=True):
+    for i, r in enumerate(ws.iter_rows(min_row=2, values_only=True)):
         if r[0] is None or r[name_c] is None:
             continue
-        d["players"].append({"nick": r[nick_c], "name": r[name_c],
+        # stabilní interní ID: z listu Hráči (sloupec ID), jinak pořadové číslo
+        pid = r[id_c] if id_c is not None and id_c < len(r) and r[id_c] is not None else (i + 1)
+        d["players"].append({"id": "P" + str(pid), "nick": r[nick_c], "name": r[name_c],
                              "final_pos": r[pos_c] if pos_c < len(r) else None,
                              "in_jury": (r[jur_c] == "ano") if jur_c < len(r) else False,
                              "kmen": (r[kmen_c] if kmen_c is not None and kmen_c < len(r) else None)})
@@ -71,9 +74,20 @@ def load_series(series):
             parts = str(p["nick"]).split()
             p["nick"] = parts[0] if cnt[parts[0]] == 1 else parts[0] + " " + parts[-1][0] + "."
 
-    n2n = {p["nick"]: p["name"] for p in d["players"]}
-    n2n.update({p["name"]: p["name"] for p in d["players"]})
-    norm = lambda x: n2n.get(x, x)
+    # norm() = jakýkoliv zápis hráče (přezdívka / plné jméno) -> stabilní ID.
+    # VALIDÁTOR: stejný zápis u dvou různých hráčů = kolize -> tvrdá chyba (ne tichá záměna).
+    n2id = {}
+    def _bind(key, pid, kind):
+        if key is None:
+            return
+        if key in n2id and n2id[key] != pid:
+            raise ValueError(f"[{series}] Kolize jmen: '{key}' ({kind}) odkazuje na 2 hráče "
+                             f"({n2id[key]} i {pid}). Rozliš je v listu Hráči (přezdívka/plné jméno).")
+        n2id[key] = pid
+    for p in d["players"]:
+        _bind(p["nick"], p["id"], "přezdívka")
+        _bind(p["name"], p["id"], "plné jméno")
+    norm = lambda x: n2id.get(x, x)
 
     if "Epizody" in wb.sheetnames:
         for r in wb["Epizody"].iter_rows(min_row=2, values_only=True):
@@ -130,8 +144,9 @@ def get_post_merge_tcs(series):
 
 
 def get_active(data, up_to_tc, post_merge_start):
+    # pracuje s interními ID hráčů (klíč napříč modelem); zobrazení řeší disp() v generátoru
     elim = set()
     for t in range(post_merge_start, up_to_tc):
         for e in (data["nadoby"].get(t, {}).get("eliminated") or []):
             elim.add(e)
-    return [p["name"] for p in data["players"] if p["name"] not in elim]
+    return [p["id"] for p in data["players"] if p["id"] not in elim]

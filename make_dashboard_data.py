@@ -20,7 +20,8 @@ def load_any(series):
         j = json.load(open(jp, encoding="utf-8"))
         names = [p[0] for p in j["players"]]; fn = [n.split()[0] for n in names]; cnt = Counter(fn)
         nk = {n: (n.split()[0] if cnt[n.split()[0]] == 1 else n.split()[0] + " " + n.split()[-1][0] + ".") for n in names}
-        return {"players": [{"name": n, "nick": nk[n], "final_pos": p[1], "kmen": None} for n, p in zip(names, j["players"])],
+        # fallback: id = plné jméno (v JSON nejsou kolize), klíče zůstávají na jménech
+        return {"players": [{"id": n, "name": n, "nick": nk[n], "final_pos": p[1], "kmen": None} for n, p in zip(names, j["players"])],
                 "votes": {int(k): [(a, b) for a, b in v] for k, v in j["votes"].items()},
                 "nadoby": {int(k): {"eliminated": ([nd.get("vyrazeny")] if nd.get("vyrazeny") else []), "most_voted": nd.get("nejvic")} for k, nd in j["nadoby"].items()},
                 "porota": [(a, b) for a, b in j.get("porota", [])]}
@@ -104,9 +105,11 @@ def tree(d, start, upto, disp, elim):
 
 def build_series(series):
     d = load_any(series); start = POST_MERGE_START[series]
-    nickmap = {p["name"]: p["nick"] for p in d["players"]}
+    # disp(): interní ID hráče -> zobrazovaná přezdívka. nickmap mapuje ID i plné jméno (kvůli WINNERS).
+    nickmap = {p["id"]: p["nick"] for p in d["players"]}
+    nickmap.update({p["name"]: p["nick"] for p in d["players"]})
     disp = lambda nm: REN.get(nickmap.get(nm, nm), nickmap.get(nm, nm))
-    kmen = {p["name"]: (p.get("kmen") or "?") for p in d["players"]}
+    kmen = {p["id"]: (p.get("kmen") or "?") for p in d["players"]}
     played = sorted(tc for tc in d["votes"] if tc >= start and d["votes"][tc])
     rounds = []; prev = {}
     timeline_players = {}
@@ -143,7 +146,8 @@ def build_series(series):
             bo[(a, b)] = bo.get((a, b), 0) + 1
             if vt[a] == vt[b]: sm[(a, b)] = sm.get((a, b), 0) + 1
     pairs = [{"a": disp(a), "b": disp(b), "ag": round(sm.get((a, b), 0) / bo[(a, b)] * 100), "n": bo[(a, b)]} for (a, b) in bo if bo[(a, b)] >= 3]
-    pairs = sorted(pairs, key=lambda x: (-x["ag"], -x["n"]))[:9]
+    # deterministický tie-break (jména) → výstup nezávisí na pořadí ID hráčů
+    pairs = sorted(pairs, key=lambda x: (-x["ag"], -x["n"], x["a"], x["b"]))[:9]
     ns = [r["n"] for r in rounds]
     timeline = {"rounds": ns, "players": {nm: [series_pct.get(k) for k in ns] for nm, series_pct in timeline_players.items()}}
     fin = None
@@ -151,12 +155,12 @@ def build_series(series):
         from collections import Counter
         # Finalisté = zbývající hráči, kteří NEBYLI v porotě. Poslední vyřazený před finále
         # (přes duel/volbu) je v porotě → nepatří mezi finalisty (III Martin, IV Filip).
-        in_jury = {p["name"] for p in d["players"] if p.get("in_jury")}
+        in_jury = {p["id"] for p in d["players"] if p.get("in_jury")}
         active_end = get_active(d, played[-1] + 1, start)
         finalists = [n for n in active_end if n not in in_jury] or active_end
         jc = Counter(t for _, t in d.get("porota", []))
         def fpos(n):
-            fp = [p["final_pos"] for p in d["players"] if p["name"] == n]
+            fp = [p["final_pos"] for p in d["players"] if p["id"] == n]
             return int(fp[0]) if fp and str(fp[0]).isdigit() else 99
         order = sorted(finalists, key=lambda n: (-jc.get(n, 0), fpos(n)))
         # ke každému finalistovi: přezdívky porotců, kteří pro něj hlasovali

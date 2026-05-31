@@ -21,15 +21,17 @@ def build_graph(data, up_to_tc, start):
     return G
 
 
-def winner_name(data):
-    return [p["name"] for p in data["players"] if str(p["final_pos"]) == "1"][0]
+def winner_id(data):
+    # vítěz jako interní ID (graf i ranking pracují s ID)
+    return [p["id"] for p in data["players"] if str(p["final_pos"]) == "1"][0]
 
 
 def walkforward(series, scorer=betweenness_scores):
     data = load_series(series)
     start = POST_MERGE_START[series]
-    win = winner_name(data)
-    print(f"\n=== Survivor {series} — walk-forward (vítěz: {win}) ===")
+    win = winner_id(data)
+    nick = {p["id"]: p["nick"] for p in data["players"]}
+    print(f"\n=== Survivor {series} — walk-forward (vítěz: {nick.get(win, win)}) ===")
     first_top = None
     for tc in get_post_merge_tcs(series):
         active = get_active(data, tc + 1, start)
@@ -37,10 +39,10 @@ def walkforward(series, scorer=betweenness_scores):
             continue
         scores = scorer(build_graph(data, tc, start), active)
         order = [n for n, _ in ranked(scores)]
-        wr = order.index(win) + 1
+        wr = order.index(win) + 1 if win in order else 0
         if wr == 1 and first_top is None:
             first_top = tc
-        top3 = ", ".join(f"{n.split()[0]}#{i+1}" for i, n in enumerate(order[:3]))
+        top3 = ", ".join(f"{nick.get(n, n)}#{i+1}" for i, n in enumerate(order[:3]))
         print(f"  kolo {tc:>2}: {top3:<40} vítěz #{wr}")
     print(f"  -> vítěz poprvé #1 v kole {first_top}")
 
@@ -54,7 +56,7 @@ def live_snapshot(series="V", scorer=betweenness_scores):
     last = max(voted)
     active = get_active(data, last + 1, start)
     probs = softmax(scorer(build_graph(data, last, start), active))
-    nick = {p["name"]: p["nick"] for p in data["players"]}
+    nick = {p["id"]: p["nick"] for p in data["players"]}
     print(f"\n=== Survivor {series} — živý snapshot (po kole {last}) ===")
     for i, (n, p) in enumerate(ranked(probs), 1):
         print(f"  {i:>2}. {nick.get(n, n):<14}{p*100:>5.1f}%")

@@ -55,9 +55,9 @@ def export(series="V"):
     active = get_active(data, last + 1, start)
     G = build_graph(data, last, start)
 
-    nick = {p["name"]: p["nick"] for p in data["players"]}
-    kmen = {p["name"]: (p.get("kmen") or "?") for p in data["players"]}
-    vote_target = {v: t for v, t in data["votes"].get(last, [])}     # koho hlasoval v posledním kole
+    nick = {p["id"]: p["nick"] for p in data["players"]}
+    kmen = {p["id"]: (p.get("kmen") or "?") for p in data["players"]}
+    vote_target = {v: t for v, t in data["votes"].get(last, [])}     # koho hlasoval v posledním kole (ID->ID)
 
     eig, btw = centralities(G, active)
     block = alliances(G, active)
