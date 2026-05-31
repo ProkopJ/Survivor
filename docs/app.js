@@ -417,18 +417,27 @@ function renderUrns(s) {
         <div style="margin-top:10px;font-size:12px"><span style="display:inline-block;width:11px;height:11px;background:#C0473E;border-radius:3px;vertical-align:middle"></span> krev &nbsp; <span style="display:inline-block;width:11px;height:11px;background:#3E6FA3;border-radius:3px;vertical-align:middle"></span> voda</div>
       </div>
     </div>
-    <div style="background:#fff;border:1px solid #D8CEBC;border-radius:12px;padding:14px 16px">
-      <div style="font-size:12px;font-weight:800;color:#8A8073;margin-bottom:6px">ŠANCE NA VODU V PŘÍŠTÍM DÍLE (teoreticky, los 1/3 dle produkce)</div>
-      <div style="font-size:13px;color:#2A2A28;margin-bottom:10px">${sk > 0
-        ? `Naposledy padla <b>krev ${sk}×</b> po sobě. Že voda přijde <b>aspoň jednou</b> během příštích ${sk} kol, by při nezávislém losu bylo <b>${cum(sk).toFixed(0)} %</b>.`
-        : `Voda padla nedávno — žádná série samé krve neběží.`}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${[1, 2, 3, 4, 5].map(K => `<div style="flex:1;min-width:70px;text-align:center;background:#F3EEE4;border-radius:8px;padding:8px 4px">
-          <div style="font-size:11px;color:#8A8073;font-weight:700">za ${K} ${K < 5 ? "kola" : "kol"}</div>
-          <div style="font-size:16px;font-weight:800;color:#3E6FA3">${cum(K).toFixed(0)} %</div></div>`).join("")}
+    ${s.live ? `<div style="background:#fff;border:1px solid #D8CEBC;border-radius:12px;padding:14px 16px">
+      <div style="font-size:12px;font-weight:800;color:#8A8073;margin-bottom:8px">PŘÍŠTÍ KMENOVÁ RADA — ${s.label}</div>
+      <div style="display:flex;gap:8px;margin-bottom:7px;font-weight:800;font-size:13px;color:#fff">
+        <div style="flex:2;background:#C0473E;border-radius:7px;padding:9px;text-align:center">🩸 krev 67 %</div>
+        <div style="flex:1;background:#3E6FA3;border-radius:7px;padding:9px;text-align:center">💧 voda 33 %</div>
       </div>
-      <div style="margin-top:10px;font-size:11px;color:#A89E8C;line-height:1.5;font-style:italic">⚠️ Pozor: pro každý jednotlivý díl je šance pořád 1/3 — los nemá paměť. „Už dlouho nepadla, tak teď musí" je <a href="https://cs.wikipedia.org/wiki/Klam_hr%C3%A1%C4%8De" target="_blank" rel="noopener" style="color:#1F9E92">klam hráče</a>. Rostoucí čísla výše platí jen jako předpověď „aspoň jednou za K kol" učiněná dopředu.</div>
-    </div>`;
+      <div style="font-size:11.5px;color:#8A8073;line-height:1.5;margin-bottom:12px">Každý díl je <b>samostatný los</b> — produkce uvádí 1/3 na vodu. Že předtím padla krev, příští los <b>nijak nemění</b> (los nemá paměť).</div>
+
+      <div style="border-top:1px dashed #E0D7C6;padding-top:11px">
+        <div style="font-size:12px;font-weight:800;color:#8A8073;margin-bottom:4px">CO SE DÁ POČÍTAT: VZÁCNOST SÉRIE KRVE</div>
+        <div style="font-size:12.5px;color:#2A2A28;margin-bottom:9px">${sk > 0
+          ? `Teď běží série <b>${sk}× krev po sobě</b>. Jak nepravděpodobný je takový běh (počítáno od jeho začátku, los 1/3):`
+          : `Naposledy padla voda — série krve zatím neběží. Obecně jak vzácný je běh K× krev po sobě:`}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${[1, 2, 3, 4, 5].map(K => { const on = K === sk, nx = K === sk + 1; return `<div style="flex:1;min-width:62px;text-align:center;background:${on ? "#C0473E" : nx ? "#F0D9D3" : "#F3EEE4"};border:${nx ? "1.5px dashed #C0473E" : "none"};border-radius:8px;padding:7px 4px">
+            <div style="font-size:10.5px;font-weight:700;color:${on ? "#fff" : "#8A8073"}">${K}× krev${on ? " (teď)" : nx ? " (kdyby)" : ""}</div>
+            <div style="font-size:15px;font-weight:800;color:${on ? "#fff" : "#C0473E"}">${(Math.pow(2 / 3, K) * 100).toFixed(0)} %</div></div>`; }).join("")}
+        </div>
+        <div style="margin-top:9px;font-size:11px;color:#A89E8C;line-height:1.5;font-style:italic">Čím delší série bez vody, tím vzácnější celý běh. <b>Ale příští díl má pořád 33 % na vodu</b> — „už dlouho nepadla, tak teď musí" je <a href="https://en.wikipedia.org/wiki/Gambler%27s_fallacy" target="_blank" rel="noopener" style="color:#1F9E92">gambler's fallacy</a>.</div>
+      </div>
+    </div>` : ""}`;
 }
 
 // ===== Finále: Pás přesunů — STEJNÝ alluvial jako "Přesuny mezi koly", ale přes CELOU sérii =====
