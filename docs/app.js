@@ -298,7 +298,8 @@ function renderFlow(idx) {
   const W = svg.node().clientWidth, s = D.series[state.series];
   if (s.rounds.length < 2) { svg.attr("height", 70); svg.append("text").attr("x", 16).attr("y", 40).attr("fill", "#8A8073").attr("font-size", 14).text("Zatím málo kol."); return; }
   if (idx < 1) { svg.attr("height", 80); svg.append("text").attr("x", 16).attr("y", 44).attr("fill", "#8A8073").attr("font-size", 14).text("První kmenová rada po sloučení — přesun se ukáže od 2."); return; }
-  const cur = s.rounds[idx], prev = s.rounds[idx - 1], prev2 = idx >= 2 ? s.rounds[idx - 2] : null;
+  const narrow = W < 460;  // mobil: jen 2 sloupce (bez šedého kontextu), menší fonty
+  const cur = s.rounds[idx], prev = s.rounds[idx - 1], prev2 = (idx >= 2 && !narrow) ? s.rounds[idx - 2] : null;
   const Tcur = targetMap(cur), Tprev = targetMap(prev), T2 = prev2 ? targetMap(prev2) : {}, curElim = elimSet(cur);
   const rkCur = voteRanking(cur), rkPrev = voteRanking(prev), rk2 = prev2 ? voteRanking(prev2) : [];
   // LAJNY PODLE POŘADÍ (rank): rank 0 = vyhlasovaný (nahoře), 1 = 2. nejvíce hlasů, …
@@ -327,7 +328,7 @@ function renderFlow(idx) {
     return (peers.findIndex(x => x.target === t) - (peers.length - 1) / 2) * 26;
   };
   const targetY = (rk, t) => laneY(rankIn(rk, t)) + tieOffset(rk, t);
-  const x2 = 64, xL = prev2 ? 196 : 150, xR = W - 140, xMid = (xL + xR) / 2;
+  const x2 = 64, xL = prev2 ? 196 : (narrow ? 42 : 150), xR = W - (narrow ? 64 : 140), xMid = (xL + xR) / 2;
   // jména: fixní rozestup, vycentrovaná na střed okna (rozestup se nemění s počtem)
   const nameY = {}; const nameBlock = (names.length - 1) * nameGap, nameTop = top + H / 2 - nameBlock / 2;
   names.forEach((p, j) => nameY[p] = nameTop + j * nameGap);
@@ -370,31 +371,35 @@ function renderFlow(idx) {
   names.forEach(p => g.append("text").attr("x", xMid).attr("y", nameY[p] + 3.5).attr("text-anchor", "middle")
     .attr("font-size", 11).attr("font-weight", 700).attr("stroke", "#F3EEE4").attr("stroke-width", 3.5).attr("paint-order", "stroke")
     .attr("fill", curElim.has(p) ? "#C0473E" : playerColor(p)).text(p + (curElim.has(p) ? " ✗" : "")));
-  // záhlaví sloupců
+  // záhlaví sloupců (mobil: krátké 'N. KR' + zarovnání ke kraji, ať se nepřekrývají)
+  const hLabel = n => narrow ? `${n}. KR` : `${n}. kmenová rada`;
   if (prev2) g.append("text").attr("x", x2).attr("y", 15).attr("text-anchor", "start").attr("font-weight", 700).attr("font-size", 10).attr("fill", "#B0A695").text(`${prev2.n}. KR`);
-  g.append("text").attr("x", xL).attr("y", 15).attr("text-anchor", "middle").attr("font-weight", 800).attr("font-size", 12).attr("fill", "#8A8073").text(`${prev.n}. kmenová rada`);
-  g.append("text").attr("x", xR).attr("y", 15).attr("text-anchor", "middle").attr("font-weight", 800).attr("font-size", 12).attr("fill", "#E8623A").text(`${cur.n}. kmenová rada`);
+  g.append("text").attr("x", xL).attr("y", 15).attr("text-anchor", narrow ? "start" : "middle").attr("font-weight", 800).attr("font-size", narrow ? 11 : 12).attr("fill", "#8A8073").text(hLabel(prev.n));
+  g.append("text").attr("x", xR).attr("y", 15).attr("text-anchor", narrow ? "end" : "middle").attr("font-weight", 800).attr("font-size", narrow ? 11 : 12).attr("fill", "#E8623A").text(hLabel(cur.n));
   // uzly cílů na své lajně (idx-2 šedě, idx-1 a idx barevně dle pořadí), velikost ~ hlasy
   if (prev2) rk2.forEach(v => g.append("circle").attr("cx", x2).attr("cy", targetY(rk2, v.target)).attr("r", 3 + v.votes * 0.7).attr("fill", "#C2B7A2").attr("opacity", 0.55).append("title").text(`${prev2.n}. KR · ${v.target}: ${v.votes}`));
   rkPrev.forEach(v => g.append("circle").attr("cx", xL).attr("cy", targetY(rkPrev, v.target)).attr("r", 4 + v.votes).attr("fill", colorByTarget(rkPrev, v.target)).attr("opacity", 0.72).append("title").text(`${prev.n}. · ${v.target}: ${v.votes}`));
   rkCur.forEach(v => g.append("circle").attr("cx", xR).attr("cy", targetY(rkCur, v.target)).attr("r", 4 + v.votes).attr("fill", colorByTarget(rkCur, v.target)).append("title").text(`${cur.n}. · ${v.target}: ${v.votes}`));
   // popis pod sloupcem: 1./2./3. nejvíc hlasů + (při duelu) zvlášť kdo reálně vypadl
-  const labelFor = r => r === 0 ? "Nejvíc hlasů" : `${r + 1}. nejvíce hlasů`;
+  // mobil: zkrácené popisky (jen jméno+počet) zarovnané ke kraji, ať se 2 sloupce nepřekrývají
+  const labelFor = r => r === 0 ? (narrow ? "1." : "Nejvíc hlasů") : `${r + 1}.${narrow ? "" : " nejvíce hlasů"}`;
+  const anchor = (x) => narrow ? (x === xL ? "start" : "end") : "middle";
+  const fs = narrow ? 9.5 : 10.5, dy = narrow ? 13 : 15;
   [[prev, xL], [cur, xR]].forEach(([rd, x]) => {
     const rk = voteRanking(rd), byRank = {};
     rk.forEach(v => { (byRank[v.rank] = byRank[v.rank] || []).push(v); });
     let li = 0;
     Object.keys(byRank).map(Number).sort((a, b) => a - b).slice(0, 3).forEach(r => {
       const grp = byRank[r];
-      g.append("text").attr("x", x).attr("y", baseY + 16 + li * 15).attr("text-anchor", "middle")
-        .attr("font-size", 10.5).attr("font-weight", r === 0 ? 800 : 600).attr("fill", "#6B6256")
-        .text(`${labelFor(r)}: ${grp.map(v => v.target).join(", ")} (${grp[0].votes})`);
+      g.append("text").attr("x", x).attr("y", baseY + 14 + li * dy).attr("text-anchor", anchor(x))
+        .attr("font-size", fs).attr("font-weight", r === 0 ? 800 : 600).attr("fill", "#6B6256")
+        .text(`${labelFor(r)} ${grp.map(v => v.target).join(", ")} (${grp[0].votes})`);
       li++;
     });
     // duel: vypadl někdo jiný než nejvíc-hlasovaný (i ten, na koho se nehlasovalo)
     [...elimSet(rd)].filter(e => rk[0] && e !== rk[0].target).forEach(e => {
-      g.append("text").attr("x", x).attr("y", baseY + 16 + li * 15).attr("text-anchor", "middle")
-        .attr("font-size", 10.5).attr("font-weight", 800).attr("fill", "#C0473E").text(`✗ Vypadl (duel): ${e}`);
+      g.append("text").attr("x", x).attr("y", baseY + 14 + li * dy).attr("text-anchor", anchor(x))
+        .attr("font-size", fs).attr("font-weight", 800).attr("fill", "#C0473E").text(`✗ ${narrow ? "" : "Vypadl (duel): "}${e}`);
       li++;
     });
   });
