@@ -213,10 +213,17 @@ function renderFinale(s) {
   </div>` : "";
   fb.innerHTML = oddsHtml + s.finale.finalists.map(f => {
     const win = f.nick === s.finale.winner;
-    return `<div style="display:flex;align-items:center;gap:14px;padding:11px 16px;margin:7px 0;background:#fff;border-radius:12px;${win ? "border:2px solid #E8623A" : "border:1px solid #D8CEBC"}">
-      <div style="font-weight:900;font-size:24px;width:34px;color:${win ? "#E8623A" : "#8A8073"}">${f.pos}.</div>
-      <div style="font-weight:800;font-size:18px;flex:1">${f.nick}${win ? " 🏆" : ""}</div>
-      <div style="color:#6B6256;font-size:13px;font-weight:700">${f.jury ? f.jury + " hlasů poroty" : ""}</div>
+    const voters = f.voters || [];
+    const juryCell = f.jury
+      ? (voters.length
+        ? `<details style="text-align:right"><summary style="color:#6B6256;font-size:13px;font-weight:700;cursor:pointer;list-style:none;user-select:none">${f.jury} hlasů poroty <span style="color:#A89E8C">▾</span></summary>
+            <div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;max-width:280px">${voters.map(v => `<span style="background:#EFE9DD;border-radius:20px;padding:3px 9px;font-size:11.5px;font-weight:700;color:#6B6256">${v}</span>`).join("")}</div></details>`
+        : `<div style="color:#6B6256;font-size:13px;font-weight:700">${f.jury} hlasů poroty</div>`)
+      : "";
+    return `<div style="display:flex;align-items:flex-start;gap:14px;padding:11px 16px;margin:7px 0;background:#fff;border-radius:12px;${win ? "border:2px solid #E8623A" : "border:1px solid #D8CEBC"}">
+      <div style="font-weight:900;font-size:24px;width:34px;color:${win ? "#E8623A" : "#8A8073"};line-height:1.4">${f.pos}.</div>
+      <div style="font-weight:800;font-size:18px;flex:1;line-height:1.4">${f.nick}${win ? " 🏆" : ""}</div>
+      ${juryCell}
     </div>`;
   }).join("");
 }

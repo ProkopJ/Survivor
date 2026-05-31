@@ -159,7 +159,12 @@ def build_series(series):
             fp = [p["final_pos"] for p in d["players"] if p["name"] == n]
             return int(fp[0]) if fp and str(fp[0]).isdigit() else 99
         order = sorted(finalists, key=lambda n: (-jc.get(n, 0), fpos(n)))
-        fin = {"finalists": [{"nick": disp(n), "pos": i + 1, "jury": jc.get(n, 0)} for i, n in enumerate(order)],
+        # ke každému finalistovi: přezdívky porotců, kteří pro něj hlasovali
+        voters_for = {}
+        for porotce, pro in d.get("porota", []):
+            voters_for.setdefault(pro, []).append(disp(porotce))
+        fin = {"finalists": [{"nick": disp(n), "pos": i + 1, "jury": jc.get(n, 0),
+                              "voters": sorted(voters_for.get(n, []))} for i, n in enumerate(order)],
                "winner": disp(order[0]) if order else disp_win(WINNERS[series], nickmap)}
     # Nádoba osudu (krev/voda): sekvence post-merge kol + počty + běžící série bez vody
     urn_seq = [d["nadoby"].get(tc, {}).get("nadoba") for tc in played]
