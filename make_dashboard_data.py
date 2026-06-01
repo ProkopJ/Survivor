@@ -121,19 +121,28 @@ def build_series(series):
         G = build_dir(d, start, tc)
         eig, btw = cent(G, active)
         prim = softmax(btw); sec = softmax({n: eig[n] + btw[n] for n in active})
-        voted = {v: t for v, t in d["votes"].get(tc, [])}
+        # Hlas na PÁR: hráč hlasoval na víc cílů → pro ZOBRAZENÍ je spoj do jednoho "A+B".
+        # (model počítá z rozložených hran zvlášť; tady jde jen o vizuální cíl.)
+        voted_multi = {}
+        for v, t in d["votes"].get(tc, []):
+            voted_multi.setdefault(v, []).append(t)
+        def voted_target(v):
+            ts = voted_multi.get(v)
+            if not ts: return None
+            return " + ".join(disp(x) for x in ts)  # 1 cíl → "Sára", pár → "Sára + Jiří"
         order = sorted(active, key=lambda n: -prim[n])
         ranking = []
         for n in order:
             dn_ = disp(n); pct = round(prim[n] * 100, 1)
-            ranking.append({"nick": dn_, "voted": disp(voted[n]) if voted.get(n) else None,
+            ranking.append({"nick": dn_, "voted": voted_target(n),
                             "kmen": kmen[n], "btw": pct, "eigbtw": round(sec[n] * 100, 1),
                             "delta": round(pct - prev.get(dn_, pct), 1)})
             prev[dn_] = pct
             timeline_players.setdefault(dn_, {})[nidx] = pct
         blocs = {}
-        for v, t in d["votes"].get(tc, []):
-            blocs.setdefault(disp(t), []).append(disp(v))
+        for v in voted_multi:
+            tgt = voted_target(v)
+            blocs.setdefault(tgt, []).append(disp(v))
         elim = {e for t in range(start, tc + 1) for e in (d["nadoby"].get(t, {}).get("eliminated") or [])}
         _el = d["nadoby"].get(tc, {}).get("eliminated") or []
         rounds.append({"kr": tc, "n": nidx, "eliminated": (", ".join(disp(e) for e in _el) if _el else None),
