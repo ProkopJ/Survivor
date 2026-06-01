@@ -50,17 +50,21 @@ def main():
     elim = set((r.get("eliminated") or "").replace(", ", ",").split(",")) - {""}
     most = r.get("most_voted")
 
-    # graf: hrana hlasující -> cíl; barva uzlu dle bloku, v němž hlasoval
+    # graf: hrana hlasující -> cíl. Párový cíl "Sára + Jura" rozlož zpět na reálné hráče
+    # (člen hlasoval na OBA) → uzly jsou skuteční lidé, ne slepenec; layout je pak rozprostře.
     G = nx.DiGraph()
     node_block = {}
-    targets = [b["target"] for b in blocs]
     for bi, b in enumerate(blocs):
+        tgts = [t.strip() for t in b["target"].split(" + ")]  # pár → [Sára, Jura]
         for m in b["members"]:
-            node_block[m] = bi
-            G.add_edge(m, b["target"])
-    for t in targets:
-        G.add_node(t)
-        node_block.setdefault(t, targets.index(t))
+            node_block.setdefault(m, bi)
+            for t in tgts:
+                G.add_edge(m, t)
+    for bi, b in enumerate(blocs):
+        for t in b["target"].split(" + "):
+            t = t.strip()
+            if t not in G: G.add_node(t)
+            node_block.setdefault(t, bi)
     nodes = list(G.nodes())
 
     # layout: deterministický (seed), pak mírně roztáhnout
