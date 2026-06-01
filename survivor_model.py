@@ -66,7 +66,10 @@ def winner_scores(G, active):
 def ranked(scores):
     return sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))
 
-def softmax(scores, T=4.0):
+def softmax(scores, T=2.0):
+    # T = teplota (ostrost). T=2 = konzervativní odhady — záměrně pokorné, ne "věštba".
+    # Kalibrace na III+IV ukázala, že vyšší/rostoucí T má nižší log-loss, ale 50-100 %
+    # na favorita po pár kolech je u live show přehnané → držíme konzervativní T=2.
     if not scores or max(scores.values()) == 0:
         n = len(scores) or 1
         return {k: 1.0 / n for k in scores}

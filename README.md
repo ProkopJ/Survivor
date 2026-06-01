@@ -19,8 +19,11 @@ ten hru ovládá a má největší šanci dojít k výhře.
 - **Sekundární model — eigenvector + betweenness.** Bohatší rozlišení; v jednotlivých sériích mění
   čísla, ale jeho přínos k *přesnosti* zatím není potvrzený (viz validace).
 
-Pravděpodobnosti vítězství = `softmax(skóre, T=4)`. Predikce vyřazení (kdo dostane nejvíc hlasů)
-se odvozuje z in-degree, ale je **málo spolehlivá** — viz níže.
+Pravděpodobnosti vítězství = `softmax(skóre, T=2)`. T (teplota) je záměrně nízká → **konzervativní
+odhady**: model neříká „vyhraje skoro jistě", drží pokorná čísla. Kalibrace na III+IV sice ukázala,
+že vyšší/rostoucí T má nižší log-loss, ale 50–100 % na favorita po pár kolech je u živé show přehnané
+sebevědomí — proto vědomě volíme pokoru („predikce, ne věštba“). Predikce vyřazení (kdo dostane nejvíc
+hlasů) se odvozuje z in-degree, ale je **málo spolehlivá** — viz níže.
 
 ```python
 from survivor_model import betweenness_scores, winner_scores, softmax, ranked
