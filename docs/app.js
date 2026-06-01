@@ -166,7 +166,7 @@ function renderBlocs(r) {
       const col = PAL[i % PAL.length];
       const div = document.createElement("div");
       div.className = "bloc"; div.style.borderTopColor = col;
-      div.innerHTML = `<h3 style="color:${col}">hlasovali na ${b.target}</h3>` + b.members.map(m => `<span class="chip">${m}</span>`).join("");
+      div.innerHTML = `<h3 style="color:${col}">${b.target}</h3>` + b.members.map(m => `<span class="chip">${m}</span>`).join("");
       el.appendChild(div);
     });
   };

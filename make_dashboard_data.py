@@ -52,7 +52,7 @@ def cent(G, active):
     btw = nx.betweenness_centrality(UG)
     return {n: eig.get(n, 0) for n in active}, {n: btw.get(n, 0) for n in active}
 
-def tree(d, start, upto, disp, elim):
+def tree(d, start, upto, disp, elim, voted_grp=None):
     voters = sorted({v for tc in range(start, upto + 1) for v, _ in d["votes"].get(tc, [])})
     N = len(voters)
     if N < 2: return None
@@ -77,10 +77,17 @@ def tree(d, start, upto, disp, elim):
         c1 = int(Z[k][0]); c2 = int(Z[k][1]); nid = N + k
         nx_[nid] = (nx_[c1] + nx_[c2]) / 2.0; nd_[nid] = Z[k][2]; lc_[nid] = lc_[c1] + lc_[c2]
     total_live = sum(1 for i in range(N) if voters[i] not in elim)
-    # hlasovací skupiny tohoto kola → pokrytí větví stromu (vrstva na černé)
+    # hlasovací skupiny tohoto kola → pokrytí větví stromu (vrstva na černé).
+    # Hlas na PÁR: seskup podle SPOJENÉHO cíle (voted_grp: hráč→"A+B"), ne podle rozložených hran,
+    # jinak by pár vytvořil 2 identické skupiny → falešně čerchovaná (dvoubarevná) větev.
     groups_raw = {}
-    for v, t in d["votes"].get(upto, []):
-        groups_raw.setdefault(t, []).append(v)
+    if voted_grp:
+        for v in {vv for vv, _ in d["votes"].get(upto, [])}:
+            g = voted_grp(v)
+            if g: groups_raw.setdefault(g, []).append(v)
+    else:
+        for v, t in d["votes"].get(upto, []):
+            groups_raw.setdefault(t, []).append(v)
     glist = sorted(groups_raw.items(), key=lambda x: -len(x[1]))
     gmem = [set(m) for _, m in glist]
     nnode = N + len(Z)
@@ -149,7 +156,7 @@ def build_series(series):
                        "most_voted": disp(d["nadoby"].get(tc, {}).get("most_voted")) if d["nadoby"].get(tc, {}).get("most_voted") else None,
                        "ranking": ranking,
                        "blocs": [{"target": k, "members": v} for k, v in sorted(blocs.items(), key=lambda x: -len(x[1]))],
-                       "tree": tree(d, start, tc, disp, elim)})
+                       "tree": tree(d, start, tc, disp, elim, voted_grp=voted_target)})
     sm = {}; bo = {}
     for tc in played:
         vt = {v: t for v, t in d["votes"].get(tc, [])}
