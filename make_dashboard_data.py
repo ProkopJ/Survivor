@@ -11,7 +11,7 @@ from collections import Counter
 OUT = os.environ.get("DASH_OUT", os.path.join(os.path.dirname(__file__), "docs", "data.js"))
 PAL = ["#1F9E92", "#E8623A", "#E7AE3A", "#3E6FA3"]; MUTED = "#C2B7A2"
 # Přejmenování pro zobrazení (web + exporty). Klíč = přezdívka z Excelu, hodnota = zkratka.
-REN = {"Johana N.": "Johy", "Stanislav": "Standa", "Otakar": "Oťas", "Viviane": "Vivi", "Ján": "Janko", "Jiří": "Jura"}
+REN = {"Johana N.": "Johy", "Stanislav": "Standa", "Otakar": "Oťas", "Viviane": "Vivi", "Ján": "Janko", "Jiří": "Jura", "Lukáš": "Luky"}
 WINNERS = {"IV": "Pavel Tóth", "III": 'Martin "Mikyř" Mikyska', "V": None}
 
 def load_any(series):
@@ -114,6 +114,11 @@ def tree(d, start, upto, disp, elim, voted_grp=None):
 
 def build_series(series):
     d = load_any(series); start = POST_MERGE_START[series]
+    # POJISTKA: jména v hlasech/nádobách, co neodpovídají žádnému hráči (překlep/zkratka) = chyba dat.
+    unknown = d.get("_unknown_names") or set()
+    if unknown:
+        raise SystemExit(f"⚠️ [{series}] Neznámá jména (nejsou v listu Hráči): {sorted(unknown)}\n"
+                         f"   V hlasech/nádobách piš PŘEZDÍVKU nebo plné jméno z listu Hráči (ne zobrazovanou zkratku).")
     # disp(): interní ID hráče -> zobrazovaná přezdívka. nickmap mapuje ID i plné jméno (kvůli WINNERS).
     nickmap = {p["id"]: p["nick"] for p in d["players"]}
     nickmap.update({p["name"]: p["nick"] for p in d["players"]})

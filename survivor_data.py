@@ -42,6 +42,14 @@ def _split_names(cell):
     return [p.strip() for p in re.split(r"[;/+&]", str(cell)) if p and p.strip()]
 
 
+def _split_names_comma(cell):
+    """Jako _split_names, ale dělí i čárku — pro imunitu páru ('Stanislav, Kristina').
+    (U imunity jsou přezdívky, ne 'Natálie K.', takže čárka je bezpečný oddělovač.)"""
+    if cell is None:
+        return []
+    return [p.strip() for p in re.split(r"[;/+&,]", str(cell)) if p and p.strip()]
+
+
 def load_series(series):
     wb = openpyxl.load_workbook(os.path.join(DATA_DIR, SERIES_FILES[series]), data_only=True)
     d = {"players": [], "episodes": {}, "votes": {}, "nadoby": {}, "porota": []}
@@ -87,13 +95,24 @@ def load_series(series):
     for p in d["players"]:
         _bind(p["nick"], p["id"], "přezdívka")
         _bind(p["name"], p["id"], "plné jméno")
-    norm = lambda x: n2id.get(x, x)
+    # norm() = zápis hráče → ID. Když jméno neodpovídá ŽÁDNÉMU hráči (překlep/zkratka v hlasech
+    # nebo nádobách), je to chyba dat → tvrdě křikni (jinak by se vyřazený/cíl tiše neztotožnil
+    # a např. vyřazený favorit by zůstal v žebříčku).
+    _unknown = set()
+    def norm(x):
+        if x in n2id:
+            return n2id[x]
+        _unknown.add(x)
+        return x
+    d["_unknown_names"] = _unknown  # generátor zkontroluje po načtení
 
     if "Epizody" in wb.sheetnames:
         for r in wb["Epizody"].iter_rows(min_row=2, values_only=True):
             if r[0] is None:
                 continue
-            d["episodes"][r[0]] = {"immunity": norm(r[2]) if len(r) > 2 and r[2] else None}
+            # imunita může být i pár (souboj o imunitu) → víc jmen oddělených , ; / + &
+            imm = [norm(nm) for nm in _split_names_comma(r[2])] if len(r) > 2 and r[2] else []
+            d["episodes"][r[0]] = {"immunity": imm[0] if len(imm) == 1 else None, "immune": imm}
 
     ws = wb["Nádoby a duely"]; h = [c.value for c in ws[1]]; has_day = "Den" in (h or [])
     nadoba_c = h.index("Nádoba") if h and "Nádoba" in h else (3 if has_day else 2)
