@@ -117,7 +117,7 @@ function renderTreemap(r) {
   all.each(fitLabel);
 }
 
-function renderTree(r) {
+function renderTree(r, allEqual) {
   const svg = d3.select("#treeSvg"); svg.selectAll("*").remove();
   if (!r.tree) return;
   const W = svg.node().clientWidth, narrow = W < 460;
@@ -129,9 +129,10 @@ function renderTree(r) {
   const X = lp => m.l + lp * PW;
   const Y = dx => m.t + dx * PH;
   const line = d3.line().x(d => X(d[1])).y(d => Y(d[0]));
+  // allEqual (finále): všechny větve stejně výrazné; jinak živá větev tmavá/tlustá, vypadlá světlá/tenká
   svg.append("g").selectAll("path").data(r.tree.links).enter().append("path")
-    .attr("d", d => line(d.p)).attr("fill", "none").attr("stroke", d => d.k ? "#3A3733" : "#CBC2B0")
-    .attr("stroke-width", d => d.k ? 3.5 : 2.5).attr("stroke-linejoin", "round").attr("stroke-linecap", "round");
+    .attr("d", d => line(d.p)).attr("fill", "none").attr("stroke", d => (allEqual || d.k) ? "#3A3733" : "#CBC2B0")
+    .attr("stroke-width", d => (allEqual || d.k) ? 3.5 : 2.5).attr("stroke-linejoin", "round").attr("stroke-linecap", "round");
   const PALc = ["#E8623A", "#1F9E92", "#E7AE3A", "#3E6FA3", "#8E5BA6", "#C0473E", "#6B8E3A"];
   const blocs = r.blocs || [];
   const blocColor = {}; blocs.forEach((b, i) => b.members.forEach(mm => blocColor[mm] = PALc[i % PALc.length]));
@@ -581,7 +582,7 @@ function render(reset = true) {
     if (tlCard.nextSibling !== treeCard) wrap.insertBefore(treeCard, tlCard.nextSibling); // strom až za časovou osu
     // Nádoba osudu jako PŘEDPOSLEDNÍ dlaždice ve finále (těsně před stromem)
     if (hasUrns && treeCard.previousSibling !== urnCard) wrap.insertBefore(urnCard, treeCard);
-    renderTree(s.rounds[nR - 1]);
+    renderTree(s.rounds[nR - 1], true);  // finále: všechny větve stejně výrazné
     return;
   }
   // mimo finále: urnCard zpět na své místo (za finaleCard, kde je v HTML)
