@@ -581,6 +581,7 @@ function render(reset = true) {
   if (isFin) {
     renderFinale(s); renderFlowFull();
     treeCard.querySelector("h2").textContent = "Finální strom aliancí";
+    treeCard.querySelector(".sub").textContent = "Kdo s kým držel podle hlasování za celou sérii (kumulativně)";
     if (tlCard.nextSibling !== treeCard) wrap.insertBefore(treeCard, tlCard.nextSibling); // strom až za časovou osu
     // Nádoba osudu jako PŘEDPOSLEDNÍ dlaždice ve finále (těsně před stromem)
     if (hasUrns && treeCard.previousSibling !== urnCard) wrap.insertBefore(urnCard, treeCard);
@@ -591,6 +592,7 @@ function render(reset = true) {
   if (hasUrns && urnCard.previousSibling !== document.getElementById("finaleCard")) wrap.insertBefore(urnCard, document.getElementById("flowFullCard"));
   if (tmCard.nextSibling !== treeCard) wrap.insertBefore(treeCard, tmCard.nextSibling); // zpět hned za treemapu
   treeCard.querySelector("h2").textContent = "Strom aliancí";
+  treeCard.querySelector(".sub").textContent = "Kdo s kým drží podle hlasování (kumulativně) · šedě přeškrtnutí = vypadli";
   DYN.forEach(id => renderCard(id, ridx));
 }
 let rsz; window.addEventListener("resize", () => { clearTimeout(rsz); rsz = setTimeout(() => render(false), 160); });
