@@ -137,8 +137,9 @@ function renderTree(r, allEqual) {
   const blocs = r.blocs || [];
   const blocColor = {}; blocs.forEach((b, i) => b.members.forEach(mm => blocColor[mm] = PALc[i % PALc.length]));
   const yb = Y(1);
-  // vrstva NA větvích: obarvení dle hlasovací skupiny tohoto kola; sdílená větev = čerchovaně (dvoubarevně)
-  r.tree.links.forEach(d => {
+  // vrstva NA větvích: obarvení dle hlasovací skupiny tohoto kola (čerchovaně = sdílená větev).
+  // Ve finále (allEqual) vynech — chceme jednotný černý dendrogram struktury aliancí.
+  if (!allEqual) r.tree.links.forEach(d => {
     if (!d.bl || !d.bl.length) return;
     if (d.bl.length === 1) {
       svg.append("path").attr("d", line(d.p)).attr("fill", "none").attr("stroke", PALc[d.bl[0] % PALc.length])
@@ -152,10 +153,11 @@ function renderTree(r, allEqual) {
     }
   });
   const g = svg.selectAll("g.lf").data(r.tree.leaves).enter().append("g").attr("transform", d => `translate(${X(d.y)},${yb})`);
-  g.append("circle").attr("r", 6).attr("fill", d => d.e ? "#A89E8C" : (blocColor[d.l] || "#2A2A28")).attr("stroke", "#F3EEE4").attr("stroke-width", 2);
+  // finále: všechny uzly i jména stejné (černé, bez přeškrtnutí); jinak vypadlí šedě/přeškrtnutí
+  g.append("circle").attr("r", 6).attr("fill", d => (!allEqual && d.e) ? "#A89E8C" : (allEqual ? "#2A2A28" : (blocColor[d.l] || "#2A2A28"))).attr("stroke", "#F3EEE4").attr("stroke-width", 2);
   g.append("text").attr("transform", "rotate(38)").attr("x", 11).attr("dy", "0.32em").attr("class", "leaflbl")
     .style("font-size", lblFs + "px")
-    .attr("fill", d => d.e ? "#A89E8C" : "#2A2A28").style("text-decoration", d => d.e ? "line-through" : "none").text(d => d.l);
+    .attr("fill", d => (!allEqual && d.e) ? "#A89E8C" : "#2A2A28").style("text-decoration", d => (!allEqual && d.e) ? "line-through" : "none").text(d => d.l);
 }
 
 let _blocsKey = null; // live-reload test
