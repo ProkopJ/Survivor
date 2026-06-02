@@ -396,8 +396,10 @@ function renderFlow(idx) {
         .text(`${labelFor(r)} ${grp.map(v => v.target).join(", ")} (${grp[0].votes})`);
       li++;
     });
-    // duel: vypadl někdo jiný než nejvíc-hlasovaný (i ten, na koho se nehlasovalo)
-    [...elimSet(rd)].filter(e => rk[0] && e !== rk[0].target).forEach(e => {
+    // duel = vypadl někdo, na koho se NEhlasovalo (není v žádném cíli, ani jako součást páru "A + B").
+    // Párové vyřazení (Sára + Jura naráz) NENÍ duel — oba jsou v hlasovacím cíli.
+    const votedTargets = new Set(rk.flatMap(v => v.target.split(" + ").map(t => t.trim())));
+    [...elimSet(rd)].filter(e => !votedTargets.has(e)).forEach(e => {
       g.append("text").attr("x", x).attr("y", baseY + 14 + li * dy).attr("text-anchor", anchor(x))
         .attr("font-size", fs).attr("font-weight", 800).attr("fill", "#C0473E").text(`✗ ${narrow ? "" : "Vypadl (duel): "}${e}`);
       li++;
@@ -498,8 +500,9 @@ function renderFlowFull() {
         .text(`${out ? "✗" : (rr + 1) + "."} ${grp.map(v => v.target).join(",")}`);
       li++;
     });
-    // duel: vypadl někdo jiný než nejvíc-hlasovaný
-    [...elims[i]].filter(e => rks[i][0] && e !== rks[i][0].target).forEach(e => {
+    // duel = vypadl někdo, na koho se NEhlasovalo (ani jako součást páru). Párové vyřazení ≠ duel.
+    const votedT = new Set(rks[i].flatMap(v => v.target.split(" + ").map(t => t.trim())));
+    [...elims[i]].filter(e => !votedT.has(e)).forEach(e => {
       g.append("text").attr("x", x).attr("y", baseY + 14 + li * 14).attr("text-anchor", "middle").attr("font-size", 9).attr("font-weight", 800).attr("fill", "#C0473E").text(`✗ duel: ${e}`);
       li++;
     });
