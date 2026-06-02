@@ -132,11 +132,13 @@ def build_series(series):
         # (model počítá z rozložených hran zvlášť; tady jde jen o vizuální cíl.)
         voted_multi = {}
         for v, t in d["votes"].get(tc, []):
-            voted_multi.setdefault(v, []).append(t)
+            # dedup: 2 hlasy na STEJNÉHO (hlas navíc) = 1 cíl, ne pár "Renne + Renne"
+            if t not in voted_multi.setdefault(v, []):
+                voted_multi[v].append(t)
         def voted_target(v):
             ts = voted_multi.get(v)
             if not ts: return None
-            return " + ".join(disp(x) for x in ts)  # 1 cíl → "Sára", pár → "Sára + Jiří"
+            return " + ".join(disp(x) for x in ts)  # 1 cíl → "Sára", různé cíle → pár "Sára + Jiří"
         order = sorted(active, key=lambda n: -prim[n])
         ranking = []
         for n in order:
