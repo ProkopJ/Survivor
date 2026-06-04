@@ -107,8 +107,11 @@ def tree(d, start, upto, disp, elim, voted_grp=None):
         for c in (c1, c2):
             arm = 1 if (lc_[c] > 0 and total_live - lc_[c] > 0) else 0
             bl = cov(c)
-            links.append({"k": arm, "bl": bl, "p": [[xd(nd_[c]), yl(nx_[c])], [xd(hp), yl(nx_[c])]]})
-            links.append({"k": arm, "bl": bl, "p": [[xd(hp), yl(nx_[c])], [xd(hp), yl(xm)]]})
+            # JEDNO lomené rameno (list/uzel → roh → střed rodiče), ne 2 oddělené segmenty.
+            # Dva segmenty s kulatými konci dělaly na uzlech tečku (nulový vodorovný segment při
+            # shodných hloubkách) a přesah barvy přes spojnici → vizuální "přetahování".
+            links.append({"k": arm, "bl": bl,
+                          "p": [[xd(nd_[c]), yl(nx_[c])], [xd(hp), yl(nx_[c])], [xd(hp), yl(xm)]]})
     leaves = [{"l": disp(nm), "e": nm in elim, "y": yl(5 + 10 * i)} for i, nm in enumerate(dn["ivl"])]
     return {"leaves": leaves, "links": links}
 

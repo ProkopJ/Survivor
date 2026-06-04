@@ -143,7 +143,7 @@ function renderTree(r, allEqual) {
     if (!d.bl || !d.bl.length) return;
     if (d.bl.length === 1) {
       svg.append("path").attr("d", line(d.p)).attr("fill", "none").attr("stroke", PALc[d.bl[0] % PALc.length])
-        .attr("stroke-width", 2.6).attr("stroke-linecap", "round").attr("stroke-linejoin", "round").attr("opacity", 0.95);
+        .attr("stroke-width", 2.6).attr("stroke-linecap", "butt").attr("stroke-linejoin", "round").attr("opacity", 0.95);
     } else {
       d.bl.forEach((gi, j) => {
         svg.append("path").attr("d", line(d.p)).attr("fill", "none").attr("stroke", PALc[gi % PALc.length])
