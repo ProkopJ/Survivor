@@ -68,14 +68,21 @@ def tree(d, start, upto, disp, elim, voted_grp=None):
     Z = linkage(squareform(Dm, checks=False), method="average")
     dn = dendrogram(Z, no_plot=True, labels=voters)
     order = dn["leaves"]; slot = {orig: i for i, orig in enumerate(order)}
-    dmax = max(Z[:, 2]) or 1.0; ymax = 10 * N
-    xd = lambda dd: round(1 - dd / dmax, 4); yl = lambda ic: round(ic / ymax, 4)
+    draw_max = max(Z[:, 2]) or 1.0; ymax = 10 * N
+    # Min. výška "schodu": i shodné vzdálenosti (ties — časté při málo kolech) dostanou malý risek
+    # nad svými dětmi. Bez toho se rameno zploští do vodorovné čáry, která přesahuje přes sousední
+    # list (vizuální "přesah" barvy) místo čistého schodiště.
+    GAP = draw_max * 0.05
+    yl = lambda ic: round(ic / ymax, 4)
     nx_ = {}; nd_ = {}; lc_ = {}
     for i in range(N):
         nx_[i] = 5 + 10 * slot[i]; nd_[i] = 0.0; lc_[i] = 0 if voters[i] in elim else 1
     for k in range(len(Z)):
         c1 = int(Z[k][0]); c2 = int(Z[k][1]); nid = N + k
-        nx_[nid] = (nx_[c1] + nx_[c2]) / 2.0; nd_[nid] = Z[k][2]; lc_[nid] = lc_[c1] + lc_[c2]
+        nx_[nid] = (nx_[c1] + nx_[c2]) / 2.0
+        nd_[nid] = max(Z[k][2], max(nd_[c1], nd_[c2]) + GAP); lc_[nid] = lc_[c1] + lc_[c2]
+    dmax = max(nd_.values()) or 1.0   # přepočti až po vynucení schodů, ať xd nepřeteče vlevo
+    xd = lambda dd: round(1 - dd / dmax, 4)
     total_live = sum(1 for i in range(N) if voters[i] not in elim)
     # hlasovací skupiny tohoto kola → pokrytí větví stromu (vrstva na černé).
     # Hlas na PÁR: seskup podle SPOJENÉHO cíle (voted_grp: hráč→"A+B"), ne podle rozložených hran,
