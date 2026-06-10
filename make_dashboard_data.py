@@ -186,25 +186,34 @@ def build_series(series):
     ns = [r["n"] for r in rounds]
     timeline = {"rounds": ns, "players": {nm: [series_pct.get(k) for k in ns] for nm, series_pct in timeline_players.items()}}
     fin = None
-    if series != "V" and played:
-        from collections import Counter
+    if played:
         # Finalisté = zbývající hráči, kteří NEBYLI v porotě. Poslední vyřazený před finále
-        # (přes duel/volbu) je v porotě → nepatří mezi finalisty (III Martin, IV Filip).
+        # (přes duel/volbu) je v porotě → nepatří mezi finalisty (III Martin, IV Filip, V Janko).
         in_jury = {p["id"] for p in d["players"] if p.get("in_jury")}
         active_end = get_active(d, played[-1] + 1, start)
         finalists = [n for n in active_end if n not in in_jury] or active_end
         jc = Counter(t for _, t in d.get("porota", []))
-        def fpos(n):
-            fp = [p["final_pos"] for p in d["players"] if p["id"] == n]
-            return int(fp[0]) if fp and str(fp[0]).isdigit() else 99
-        order = sorted(finalists, key=lambda n: (-jc.get(n, 0), fpos(n)))
-        # ke každému finalistovi: přezdívky porotců, kteří pro něj hlasovali
-        voters_for = {}
-        for porotce, pro in d.get("porota", []):
-            voters_for.setdefault(pro, []).append(disp(porotce))
-        fin = {"finalists": [{"nick": disp(n), "pos": i + 1, "jury": jc.get(n, 0),
-                              "voters": sorted(voters_for.get(n, []))} for i, n in enumerate(order)],
-               "winner": disp(order[0]) if order else disp_win(WINNERS[series], nickmap)}
+        # Finále existuje, až když je složení rozhodnuté (předfinálový duel někoho z aktivních
+        # poslal do poroty) nebo už jsou hlasy poroty. Jinak (živá série v půlce) se nevypisuje.
+        if len(finalists) < len(active_end) or jc:
+            def fpos(n):
+                fp = [p["final_pos"] for p in d["players"] if p["id"] == n]
+                return int(fp[0]) if fp and str(fp[0]).isdigit() else 99
+            # živé finále: bez hlasů poroty a bez finálních pozic neznáme pořadí ani vítěze
+            # → bez medailí (pos=None), seřadit podle modelu z posledního kola
+            decided = bool(jc) or any(fpos(n) != 99 for n in finalists)
+            if decided:
+                order = sorted(finalists, key=lambda n: (-jc.get(n, 0), fpos(n)))
+            else:
+                last_pct = {x["nick"]: x["btw"] for x in rounds[-1]["ranking"]} if rounds else {}
+                order = sorted(finalists, key=lambda n: -last_pct.get(disp(n), 0))
+            # ke každému finalistovi: přezdívky porotců, kteří pro něj hlasovali
+            voters_for = {}
+            for porotce, pro in d.get("porota", []):
+                voters_for.setdefault(pro, []).append(disp(porotce))
+            fin = {"finalists": [{"nick": disp(n), "pos": (i + 1 if decided else None), "jury": jc.get(n, 0),
+                                  "voters": sorted(voters_for.get(n, []))} for i, n in enumerate(order)],
+                   "winner": disp(order[0]) if (decided and order) else disp_win(WINNERS[series], nickmap)}
     # Nádoba osudu (krev/voda): sekvence post-merge kol + počty + běžící série bez vody
     urn_seq = [d["nadoby"].get(tc, {}).get("nadoba") for tc in played]
     urn_seq = [u for u in urn_seq if u in ("krev", "voda")]

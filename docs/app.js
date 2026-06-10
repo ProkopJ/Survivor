@@ -121,9 +121,15 @@ function renderTree(r, allEqual) {
   const svg = d3.select("#treeSvg"); svg.selectAll("*").remove();
   if (!r.tree) return;
   const W = svg.node().clientWidth, narrow = W < 460;
-  // úzký displej: menší font listů + větší pravý okraj, ať rotovaná jména nevytékají
-  const lblFs = narrow ? 10.5 : 14, H = narrow ? 430 : 470;
-  const m = { l: narrow ? 14 : 26, r: narrow ? 58 : 26, t: 16, b: narrow ? 108 : 130 };
+  const lblFs = narrow ? 10.5 : 14;
+  // okraje dynamicky dle nejdelšího jména (rotace 38°), ať jména nikdy nepřetečou kartu
+  const maxChars = Math.max(...r.tree.leaves.map(L => L.l.length));
+  const lblLen = 11 + maxChars * lblFs * 0.62;               // odsazení + odhad šířky textu
+  const rad = 38 * Math.PI / 180;
+  const needR = Math.ceil(Math.cos(rad) * lblLen) + 6;       // přesah doprava
+  const needB = Math.ceil(Math.sin(rad) * lblLen) + 18;      // přesah dolů
+  const m = { l: narrow ? 14 : 26, r: Math.max(narrow ? 58 : 26, needR), t: 16, b: Math.max(narrow ? 108 : 130, needB) };
+  const H = (narrow ? 322 : 340) + m.b;
   const PW = W - m.l - m.r, PH = H - m.t - m.b;
   svg.attr("height", H);
   const X = lp => m.l + lp * PW;
@@ -230,11 +236,11 @@ function renderFinale(s) {
         : `<div style="color:#6B6256;font-size:13px;font-weight:700">${f.jury} hlasů poroty</div>`)
       : "";
     return `<div style="display:flex;align-items:flex-start;gap:14px;padding:11px 16px;margin:7px 0;background:#fff;border-radius:12px;${win ? "border:2px solid #E8623A" : "border:1px solid #D8CEBC"}">
-      <div style="font-weight:900;font-size:24px;width:34px;color:${win ? "#E8623A" : "#8A8073"};line-height:1.4">${f.pos}.</div>
+      <div style="font-weight:900;font-size:24px;width:34px;color:${win ? "#E8623A" : "#8A8073"};line-height:1.4">${f.pos ? f.pos + "." : "–"}</div>
       <div style="font-weight:800;font-size:18px;flex:1;line-height:1.4">${f.nick}${win ? " 🏆" : ""}</div>
       ${juryCell}
     </div>`;
-  }).join("");
+  }).join("") + (s.finale.winner ? "" : `<div style="font-size:12px;color:#8A8073;font-style:italic;margin-top:10px">Složení finále je dané, vítěze určí hlasy poroty — zatím nevyhlášeno.</div>`);
 }
 
 function renderPairs(s) {
